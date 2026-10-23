@@ -6,6 +6,7 @@ import {
 } from './logic'
 import { compressPhoto } from './photo'
 import { SAMPLES } from './samples'
+import { STARTER_PHOTO, makeStarter } from './starter'
 import {
   IconBack, IconBook, IconCamera, IconCart, IconCheck, IconClock, IconEdit, IconGear, IconHeart, IconImage, IconPlus,
   IconPot, IconSearch, IconTrash, IconUsers, Logo, PlateArt,
@@ -37,7 +38,13 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToast(''), 2200)
   }, [])
 
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(async (seed = false) => {
+    if (seed) {
+      await db.seedStarterOnce(makeStarter, async () => {
+        const res = await fetch(STARTER_PHOTO)
+        return res.ok ? res.blob() : null
+      }).catch(() => false)
+    }
     const [rs, sh, ph] = await Promise.all([db.getRecipes(), db.getShopping(), db.getAllPhotos()])
     setPhotos((old) => {
       Object.values(old).forEach((u) => URL.revokeObjectURL(u))
@@ -50,7 +57,7 @@ export default function App() {
     setReady(true)
   }, [])
 
-  useEffect(() => { loadAll() }, [loadAll])
+  useEffect(() => { loadAll(true) }, [loadAll])
 
   // Lightweight history so the back button / gesture closes sub-screens.
   const go = useCallback((v: View, replace = false) => {
@@ -133,7 +140,7 @@ export default function App() {
   }
 
   const removeSamples = async () => {
-    for (const r of recipes.filter((x) => x.sample)) await db.deleteRecipe(r)
+    await db.deleteSampleRecipes()
     setRecipes((rs) => rs.filter((x) => !x.sample))
     flash('Sample recipes removed')
   }
@@ -218,7 +225,7 @@ export default function App() {
             recipes={recipes}
             shop={shop}
             flash={flash}
-            onReload={loadAll}
+            onReload={() => loadAll()}
             onSamples={loadSamples}
             onRemoveSamples={removeSamples}
           />

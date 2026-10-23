@@ -46,10 +46,14 @@ describe('scaler', () => {
     expect(scaleIngredient('1/2 cup sugar', 2)).toBe('1 cup sugar')
     expect(scaleIngredient('1 1/2 cups flour', 2)).toBe('3 cups flour')
     expect(scaleIngredient('1 cup milk', 0.5)).toBe('½ cup milk')
+    expect(scaleIngredient('1 cup milk', 2)).toBe('2 cups milk')
+    expect(scaleIngredient('2 cups milk', 0.5)).toBe('1 cup milk')
     expect(scaleIngredient('3/4 tsp salt', 1 / 3)).toBe('¼ tsp salt')
     expect(scaleIngredient('2 eggs', 1.5)).toBe('3 eggs')
     expect(scaleIngredient('1 egg', 0.5)).toBe('½ egg')
-    expect(scaleIngredient('2-3 cloves garlic', 2)).toBe('4–6 cloves garlic')
+    expect(scaleIngredient('2-3 cloves garlic', 2)).toBe('4-6 cloves garlic')
+    expect(scaleIngredient('1 to 2 tsp honey, to taste', 2)).toBe('2 to 4 tsp honey, to taste')
+    expect(scaleIngredient('1 tomato', 2)).toBe('2 tomato')
     expect(scaleIngredient('200g butter', 1.5)).toBe('300g butter')
     expect(scaleIngredient('2 (14 oz) cans tomatoes', 2)).toBe('4 (14 oz) cans tomatoes')
     expect(scaleIngredient('Salt to taste', 3)).toBe('Salt to taste')
@@ -80,6 +84,10 @@ describe('search', () => {
     expect(searchRecipes(list, { query: '', category: 'Breakfast' }).map((x) => x.title)).toEqual(['Pancakes'])
     expect(searchRecipes(list, { query: '', category: null, favoritesOnly: true }).map((x) => x.title)).toEqual(['Tomato Pasta'])
     expect(searchRecipes(list, { query: '', category: null })).toHaveLength(3)
+  })
+  it('keeps the pinned starter recipe first', () => {
+    const l2 = [r({ title: 'Apple Pie' }), r({ title: 'Zucchini Bread', pinned: true }), r({ title: 'Banana Bread' })]
+    expect(searchRecipes(l2, { query: '', category: null }).map((x) => x.title)).toEqual(['Zucchini Bread', 'Apple Pie', 'Banana Bread'])
   })
   it('ranks title hits first', () => {
     const l2 = [r({ title: 'Apple Pie', ingredients: ['1 tomato'] }), r({ title: 'Tomato Soup' })]

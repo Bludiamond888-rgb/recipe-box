@@ -1,6 +1,6 @@
 // Pure logic: fractions, ingredient scaling, search, shopping list, backup (de)serialization.
 
-export const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack', 'Side', 'Drink', 'Other'] as const
+export const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack', 'Side', 'Drinks', 'Other'] as const
 
 export interface Recipe {
   id: string
@@ -16,6 +16,8 @@ export interface Recipe {
   favorite: boolean
   photoId: string | null
   sample?: boolean
+  /** Starter recipe pinned to the top of the list (not removable sample data). */
+  pinned?: boolean
   createdAt: number
   updatedAt: number
 }
@@ -76,9 +78,9 @@ export function formatQuantity(n: number): string {
 /* ---------------- ingredients ---------------- */
 
 const QTY = `(?:\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+\\s*[${VULGAR_CHARS}]|[${VULGAR_CHARS}]|\\d+(?:[.,]\\d+)?|\\.\\d+)`
-const ING_RE = new RegExp(`^\\s*(${QTY})(?:\\s*(?:-|–|—|to)\\s*(${QTY}))?(?=\\s|$|[a-zA-Z(])(\\s*)(.*)$`)
+const ING_RE = new RegExp(`^\\s*(${QTY})(?:(\\s*(?:-|–|—|to)\\s*)(${QTY}))?(?=\\s|$|[a-zA-Z(])(\\s*)(.*)$`)
 
-export interface ParsedIngredient { qty: number | null; qtyMax: number | null; rest: string; raw: string; glued?: boolean }
+export interface ParsedIngredient { qty: number | null; qtyMax: number | null; rest: string; raw: string; glued?: boolean; sep?: string }
 
 export function parseIngredient(line: string): ParsedIngredient {
   const raw = line.trim()
@@ -86,8 +88,8 @@ export function parseIngredient(line: string): ParsedIngredient {
   if (!m) return { qty: null, qtyMax: null, rest: raw, raw }
   const qty = parseQuantity(m[1])
   if (qty === null) return { qty: null, qtyMax: null, rest: raw, raw }
-  const qtyMax = m[2] ? parseQuantity(m[2]) : null
-  return { qty, qtyMax, rest: m[4].trim(), raw, glued: !m[3] && /^[a-zA-Z]/.test(m[4]) }
+  const qtyMax = m[3] ? parseQuantity(m[3]) : null
+  return { qty, qtyMax, rest: m[5].trim(), raw, glued: !m[4] && /^[a-zA-Z]/.test(m[5]), sep: m[2] }
 }
 
 /** Scale an ingredient line by factor. Lines without a leading quantity are returned unchanged. */
@@ -95,8 +97,11 @@ export function scaleIngredient(line: string, factor: number): string {
   const p = parseIngredient(line)
   if (p.qty === null || factor === 1) return p.raw
   let q = formatQuantity(p.qty * factor)
-  if (p.qtyMax !== null) q += '–' + formatQuantity(p.qtyMax * factor)
-  return p.rest ? `${q}${p.glued ? '' : ' '}${p.rest}` : q
+  if (p.qtyMax !== null) q += (p.sep ?? '–') + formatQuantity(p.qtyMax * factor)
+  // Keep "cup"/"cups" grammatical after scaling.
+  const top = (p.qtyMax ?? p.qty) * factor
+  const rest = p.rest.replace(/^cups?\b/i, (u) => (top > 1 ? (u[0] === 'C' ? 'Cups' : 'cups') : (u[0] === 'C' ? 'Cup' : 'cup')))
+  return rest ? `${q}${p.glued ? '' : ' '}${rest}` : q
 }
 
 /** Split textarea text into trimmed, non-empty lines; strips leading bullets / "1." numbering. */
@@ -151,6 +156,7 @@ export function searchRecipes(list: Recipe[], f: Filter): Recipe[] {
   return list
     .filter((r) => matchesRecipe(r, f))
     .sort((a, b) => {
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
       if (q) {
         const at = norm(a.title).includes(q) ? 0 : 1, bt = norm(b.title).includes(q) ? 0 : 1
         if (at !== bt) return at - bt
@@ -265,6 +271,7 @@ export function parseBackup(json: string): { recipes: Recipe[]; shopping: ShopIt
       favorite: !!r.favorite,
       photoId: typeof r.photoId === 'string' && photos.has(r.photoId) ? r.photoId : null,
       ...(r.sample ? { sample: true } : {}),
+      ...(r.pinned ? { pinned: true } : {}),
       createdAt: num(r.createdAt) ?? now,
       updatedAt: num(r.updatedAt) ?? now,
     }))
