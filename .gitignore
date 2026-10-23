@@ -1,0 +1,8 @@
+/node_modules
+/dist
+/screens
+/test-results
+/playwright-report
+/.build-dev
+*.tsbuildinfo
+.DS_Store
