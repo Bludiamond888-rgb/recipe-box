@@ -10,8 +10,9 @@ import { STARTER_PHOTO, makeStarter } from './starter'
 import { CHEF_RECIPES, chefPhotoUrl, makeChefRecipes } from './chef'
 import {
   IconBack, IconBook, IconCamera, IconCart, IconCheck, IconClock, IconEdit, IconGear, IconHeart, IconImage, IconPlus,
-  IconPot, IconSearch, IconTrash, IconUsers, Logo, PlateArt,
+  IconPot, IconSearch, IconTrash, IconUsers, Logo, PlateArt, StepPic,
 } from './icons'
+import { stepKind } from './stepIcon'
 
 type Tab = 'recipes' | 'favorites' | 'shopping' | 'settings'
 type View =
@@ -427,7 +428,18 @@ function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (
           <section className="sec">
             <h3>Steps</h3>
             <ol className="steps">
-              {r.steps.map((s, i) => <li key={i}><span className="num">{i + 1}</span><p>{s}</p></li>)}
+              {r.steps.map((s, i) => {
+                const kind = stepKind(s)
+                return (
+                  <li key={i}>
+                    <div className="step-pic-wrap">
+                      <StepPic kind={kind} className="step-pic" />
+                      <span className="num">{i + 1}</span>
+                    </div>
+                    <p>{s}</p>
+                  </li>
+                )
+              })}
             </ol>
           </section>
         )}
@@ -479,6 +491,9 @@ function CookMode({ r, factor, onDone }: { r: Recipe; factor: number; onDone: ()
       </div>
       <div className="progress"><i style={{ width: `${((i + 1) / n) * 100}%` }} /></div>
       <div className="cook-count">Step {i + 1} of {n}</div>
+      <div className="cook-pic">
+        <StepPic kind={stepKind(r.steps[i])} size={88} />
+      </div>
       <p className="cook-step">{r.steps[i]}</p>
       <button className="link ing-toggle" onClick={() => setShowIng((s) => !s)}>{showIng ? 'Hide ingredients' : 'Show ingredients'}</button>
       {showIng && <ul className="cook-ing">{r.ingredients.map((l, k) => <li key={k}>{scaleIngredient(l, factor)}</li>)}</ul>}
