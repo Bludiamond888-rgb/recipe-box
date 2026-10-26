@@ -105,3 +105,55 @@ export async function seedStarterOnce(make: () => Recipe, loadPhoto: () => Promi
   await tx.done
   return true
 }
+
+const CHEF_SEED_FLAG = 'chefRecipesSeededV1'
+
+/**
+ * Seed Chef recipes once per install. Skips any title that already exists.
+ * Flag is independent of starterSeeded so existing smoothie installs still get these.
+ * Recipes are NOT sample:true, so "Remove sample recipes" keeps them.
+ */
+export async function seedChefRecipesOnce(
+  defs: Array<{ recipe: Recipe; photoUrl: string | null }>,
+  loadPhoto: (url: string) => Promise<Blob | null>,
+): Promise<number> {
+  const d = await db()
+  if (await d.get('meta', CHEF_SEED_FLAG)) return 0
+
+  const existing = await d.getAll('recipes')
+  const titles = new Set(existing.map((r) => r.title.trim().toLowerCase()))
+  const toAdd = defs.filter((x) => !titles.has(x.recipe.title.trim().toLowerCase()))
+
+  // Preload photos outside the transaction
+  const withPhotos: Array<{ recipe: Recipe; stored: Awaited<ReturnType<typeof toStored>> | null }> = []
+  for (const item of toAdd) {
+    let stored: Awaited<ReturnType<typeof toStored>> | null = null
+    if (item.photoUrl) {
+      try {
+        const blob = await loadPhoto(item.photoUrl)
+        if (blob) stored = await toStored(blob)
+      } catch { /* offline: seed without photo */ }
+    }
+    withPhotos.push({ recipe: { ...item.recipe }, stored })
+  }
+
+  const tx = d.transaction(['recipes', 'photos', 'meta'], 'readwrite')
+  if (await tx.objectStore('meta').get(CHEF_SEED_FLAG)) { await tx.done; return 0 }
+  // Re-check titles inside the tx in case of races
+  const live = await tx.objectStore('recipes').getAll()
+  const liveTitles = new Set(live.map((r) => r.title.trim().toLowerCase()))
+  let added = 0
+  for (const { recipe, stored } of withPhotos) {
+    if (liveTitles.has(recipe.title.trim().toLowerCase())) continue
+    if (stored) {
+      recipe.photoId = uid()
+      await tx.objectStore('photos').put(stored, recipe.photoId)
+    }
+    await tx.objectStore('recipes').put(recipe)
+    liveTitles.add(recipe.title.trim().toLowerCase())
+    added++
+  }
+  await tx.objectStore('meta').put(Date.now(), CHEF_SEED_FLAG)
+  await tx.done
+  return added
+}

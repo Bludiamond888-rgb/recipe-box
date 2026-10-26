@@ -15,26 +15,31 @@ const shot = async (n) => { await page.waitForSelector('.toast', { state: 'detac
 const check = (cond, msg) => { if (!cond) { errs.push('CHECK FAILED: ' + msg); console.log('FAIL', msg) } }
 
 await page.goto(url)
-// Fresh install: the starter smoothie is seeded automatically, pinned first.
-await page.waitForFunction(() => document.querySelectorAll('.card img.thumb').length === 1)
+// Fresh install: smoothie + 9 Chef recipes (all with photos). Smoothie pinned first.
+await page.waitForFunction(() => document.querySelectorAll('.card img.thumb').length >= 10, null, { timeout: 15000 })
+await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))))
 await shot('01-first-launch')
 check((await page.locator('.card h3').first().innerText()) === 'Blueberry Pineapple Yogurt Smoothie', 'starter seeded on first launch')
+check((await page.locator('.card').count()) === 10, '10 recipes after chef seed')
 
 await page.click('.tab >> text=Settings')
+await page.waitForFunction(() => document.body.innerText.includes('10 recipes · 10 with photos'))
 await page.click('text=Load sample recipes')
-await page.waitForFunction(() => document.body.innerText.includes('7 recipes · 7 with photos'))
+await page.waitForFunction(() => document.body.innerText.includes('16 recipes · 16 with photos'))
 await page.click('.tab >> text=Recipes')
-await page.waitForFunction(() => document.querySelectorAll('.card img.thumb').length >= 7)
+await page.waitForFunction(() => document.querySelectorAll('.card img.thumb').length >= 16)
 await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))))
 await shot('02-recipes')
 check((await page.locator('.card h3').first().innerText()) === 'Blueberry Pineapple Yogurt Smoothie', 'smoothie first in list')
 
-await page.fill('.search input', 'garlic')
+await page.fill('.search input', 'gyudon')
 await shot('03-search-ingredient')
-check((await page.locator('.card').count()) === 3, 'search garlic -> 3 recipes')
+check((await page.locator('.card').count()) === 1, 'search gyudon -> 1 recipe')
+check((await page.locator('.card h3').first().innerText()).includes('Gyudon'), 'gyudon title')
 await page.fill('.search input', '')
 await page.click('.chips >> text=Dinner')
-check((await page.locator('.card').count()) === 2, 'Dinner filter -> 2')
+const dinnerCount = await page.locator('.card').count()
+check(dinnerCount >= 8, 'Dinner filter has chef dinners + samples, got ' + dinnerCount)
 await page.click('.chips >> text=All')
 
 await page.click('.card:has-text("Smoothie")')
@@ -58,6 +63,34 @@ await page.click('text=Next step')
 await page.click('text=Show ingredients')
 await shot('06-smoothie-cook-mode')
 await page.click('[aria-label="Back"]')
+await page.click('[aria-label="Back"]')
+
+// Chef recipe detail with photo
+await page.click('.card:has-text("Black Pepper Steak with Bell Peppers")')
+await page.waitForSelector('.rtitle')
+await page.waitForSelector('.hero img, .photo img, img.hero, .rphoto img, .recipe img', { timeout: 5000 }).catch(() => {})
+await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))))
+await shot('13-black-pepper-steak')
+check((await page.locator('.rtitle').innerText()).includes('Black Pepper'), 'black pepper detail')
+await page.click('[aria-label="Back"]')
+
+await page.click('.card:has-text("Gyudon")')
+await page.waitForSelector('.rtitle')
+await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))))
+await shot('14-gyudon')
+await page.click('[aria-label="Back"]')
+
+await page.click('.card:has-text("Spring Rolls")')
+await page.waitForSelector('.rtitle')
+await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))))
+await shot('15-spring-rolls')
+check((await page.locator('.checklist li').allInnerTexts()).some((t) => t.includes('Nuoc Cham')), 'nuoc cham ingredients')
+await page.click('[aria-label="Back"]')
+
+await page.click('.card:has-text("Taiwanese Black Pepper")')
+await page.waitForSelector('.rtitle')
+await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))))
+await shot('16-taiwanese-steak')
 await page.click('[aria-label="Back"]')
 
 await page.click('.card:has-text("Pancakes")')
@@ -101,29 +134,32 @@ await shot('11-settings')
 const [dl] = await Promise.all([page.waitForEvent('download'), page.click('text=Back up now')])
 const file = await dl.path()
 const json = JSON.parse(await readFile(file, 'utf8'))
-check(json.recipes.length === 7 && Object.keys(json.photos).length === 7, 'backup has 7 recipes + 7 photos')
+check(json.recipes.length === 16 && Object.keys(json.photos).length === 16, 'backup has 16 recipes + 16 photos')
 await page.click('text=Erase all data')
 await page.waitForFunction(() => document.body.innerText.includes('0 recipes'))
 await page.setInputFiles('.settings input[type=file]', file)
-await page.waitForFunction(() => document.body.innerText.includes('7 recipes · 7 with photos'))
+await page.waitForFunction(() => document.body.innerText.includes('16 recipes · 16 with photos'))
 console.log('backup round-trip ok')
 
-// Remove samples: the starter smoothie stays.
+// Remove samples: starter + chef recipes stay.
 await page.click('text=Remove sample recipes')
-await page.waitForFunction(() => document.body.innerText.includes('1 recipe · 1 with photos'))
+await page.waitForFunction(() => document.body.innerText.includes('10 recipes · 10 with photos'))
 await page.click('.tab >> text=Recipes')
-check((await page.locator('.card h3').allInnerTexts()).join() === 'Blueberry Pineapple Yogurt Smoothie', 'starter survives sample removal')
+const kept = await page.locator('.card h3').allInnerTexts()
+check(kept.includes('Blueberry Pineapple Yogurt Smoothie'), 'starter survives sample removal')
+check(kept.includes('Garlic Spicy Noodles'), 'chef recipe survives sample removal')
+check(kept.length === 10, '10 kept after sample removal')
 
-// Erase all removes it, and a relaunch does NOT re-seed it.
+// Erase all removes them, and a relaunch does NOT re-seed (flags stay).
 await page.click('.tab >> text=Settings')
 await page.click('text=Erase all data')
 await page.waitForFunction(() => document.body.innerText.includes('0 recipes'))
 await page.reload()
 await page.waitForSelector('.empty')
 await page.waitForTimeout(800)
-check((await page.locator('.card').count()) === 0, 'starter not re-seeded after erase + relaunch')
+check((await page.locator('.card').count()) === 0, 'starter/chef not re-seeded after erase + relaunch')
 await shot('12-empty-after-erase')
-console.log('starter seeding checks ok')
+console.log('starter + chef seeding checks ok')
 
 // Shell geometry check: header top 0, tab bar flush to bottom, inputs >= 16px.
 const geo = await page.evaluate(() => {

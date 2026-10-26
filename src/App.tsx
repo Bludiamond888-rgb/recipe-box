@@ -7,6 +7,7 @@ import {
 import { compressPhoto } from './photo'
 import { SAMPLES } from './samples'
 import { STARTER_PHOTO, makeStarter } from './starter'
+import { CHEF_RECIPES, chefPhotoUrl, makeChefRecipes } from './chef'
 import {
   IconBack, IconBook, IconCamera, IconCart, IconCheck, IconClock, IconEdit, IconGear, IconHeart, IconImage, IconPlus,
   IconPot, IconSearch, IconTrash, IconUsers, Logo, PlateArt,
@@ -44,6 +45,15 @@ export default function App() {
         const res = await fetch(STARTER_PHOTO)
         return res.ok ? res.blob() : null
       }).catch(() => false)
+      const chefRecipes = makeChefRecipes()
+      const chefDefs = CHEF_RECIPES.map((def, i) => ({
+        recipe: chefRecipes[i],
+        photoUrl: def.photo ? chefPhotoUrl(def.photo) : null,
+      }))
+      await db.seedChefRecipesOnce(chefDefs, async (url) => {
+        const res = await fetch(url)
+        return res.ok ? res.blob() : null
+      }).catch(() => 0)
     }
     const [rs, sh, ph] = await Promise.all([db.getRecipes(), db.getShopping(), db.getAllPhotos()])
     setPhotos((old) => {

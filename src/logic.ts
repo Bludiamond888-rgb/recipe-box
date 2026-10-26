@@ -1,6 +1,6 @@
 // Pure logic: fractions, ingredient scaling, search, shopping list, backup (de)serialization.
 
-export const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack', 'Side', 'Drinks', 'Other'] as const
+export const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Appetizer', 'Dessert', 'Snack', 'Side', 'Drinks', 'Other'] as const
 
 export interface Recipe {
   id: string
