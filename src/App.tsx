@@ -50,6 +50,7 @@ export default function App() {
       const chefDefs = CHEF_RECIPES.map((def, i) => ({
         recipe: chefRecipes[i],
         photoUrl: def.photo ? chefPhotoUrl(def.photo) : null,
+        since: def.since,
       }))
       await db.seedChefRecipesOnce(chefDefs, async (url) => {
         const res = await fetch(url)

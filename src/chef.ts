@@ -6,6 +6,9 @@ export const CHEF_PHOTO_BASE = './chef/'
 type ChefDef = Omit<Recipe, 'id' | 'photoId' | 'createdAt' | 'updatedAt' | 'sample' | 'pinned'> & {
   photo: string
   pinned?: boolean
+  /** Seed version that introduced this recipe (default 1). Installs already seeded at an
+   * older version only receive recipes with a higher `since`. */
+  since?: number
 }
 
 export const CHEF_RECIPES: ChefDef[] = [
@@ -380,11 +383,60 @@ export const CHEF_RECIPES: ChefDef[] = [
       '• Charred jalapeño slices or a fried egg make a great add-on.',
     ].join('\n'),
   },
+  {
+    title: 'Vietnamese Shrimp & Chicken Spring Rolls with Peanut Sauce',
+    category: 'Appetizer',
+    tags: ['Vietnamese', 'shrimp', 'chicken', 'fresh-rolls', 'appetizer'],
+    prepMin: 25,
+    cookMin: 15,
+    servings: 4,
+    favorite: true,
+    pinned: false,
+    since: 2,
+    photo: 'shrimp-chicken-spring-rolls.jpg',
+    ingredients: [
+      '8 rice paper wrappers',
+      '12 medium shrimp, peeled and deveined',
+      '1 boneless skinless chicken breast (about 8 oz)',
+      '4 oz rice vermicelli noodles',
+      '8 lettuce leaves (butter or green leaf)',
+      '1 medium carrot, julienned',
+      '1/2 cucumber, cut into thin matchsticks',
+      '1 cup bean sprouts (optional)',
+      'Fresh mint, cilantro, and Thai basil leaves',
+      'Peanut sauce: 1/3 cup creamy peanut butter',
+      'Peanut sauce: 2 tbsp hoisin sauce',
+      'Peanut sauce: 1 tbsp soy sauce',
+      'Peanut sauce: 1 tbsp lime juice',
+      'Peanut sauce: 1 tsp sugar or honey',
+      'Peanut sauce: 1 garlic clove, minced',
+      'Peanut sauce: 1/2 tsp chili garlic sauce (optional)',
+      'Peanut sauce: 3 to 4 tbsp warm water',
+      'Peanut sauce: Crushed roasted peanuts, for topping',
+    ],
+    steps: [
+      'Poach the chicken in simmering salted water 12 to 15 minutes until cooked through (165°F). Cool, then slice thinly.',
+      'Boil the shrimp 2 to 3 minutes until pink. Chill, then halve lengthwise.',
+      'Cook the vermicelli per the package, rinse under cold water, and drain well.',
+      'Whisk the peanut sauce ingredients, adding warm water until smooth and dippable. Top with crushed peanuts.',
+      'Dip one rice paper in warm water for 5 to 10 seconds until just pliable, then lay it on a damp board.',
+      'Place 3 shrimp halves pink-side down across the middle. Layer lettuce, noodles, chicken, carrot, cucumber, sprouts, and herbs below them.',
+      'Fold the bottom over the filling, tuck in the sides, and roll tightly so the shrimp show through.',
+      'Repeat with the remaining wrappers, keeping finished rolls under a damp towel. Serve with peanut sauce.',
+    ],
+    notes: [
+      '• Don\'t oversoak the rice paper or it tears.',
+      '• Prep all fillings before rolling.',
+      '• Best eaten the same day.',
+      '• Rotisserie chicken works to save time.',
+      '• Makes 8 rolls (about 4 servings), ~40 min total.',
+    ].join('\n'),
+  },
 ]
 
 export function makeChefRecipes(now = Date.now()): Recipe[] {
   return CHEF_RECIPES.map((def, i) => {
-    const { photo: _photo, pinned = false, ...rest } = def
+    const { photo: _photo, pinned = false, since: _since, ...rest } = def
     return {
       ...rest,
       id: uid(),

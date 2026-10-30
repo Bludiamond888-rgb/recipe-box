@@ -106,7 +106,8 @@ export async function seedStarterOnce(make: () => Recipe, loadPhoto: () => Promi
   return true
 }
 
-const CHEF_SEED_FLAG = 'chefRecipesSeededV1'
+const CHEF_SEED_FLAG_V1 = 'chefRecipesSeededV1'
+const CHEF_SEED_FLAG = 'chefRecipesSeededV2'
 
 /**
  * Seed Chef recipes once per install. Skips any title that already exists.
@@ -114,11 +115,15 @@ const CHEF_SEED_FLAG = 'chefRecipesSeededV1'
  * Recipes are NOT sample:true, so "Remove sample recipes" keeps them.
  */
 export async function seedChefRecipesOnce(
-  defs: Array<{ recipe: Recipe; photoUrl: string | null }>,
+  allDefs: Array<{ recipe: Recipe; photoUrl: string | null; since?: number }>,
   loadPhoto: (url: string) => Promise<Blob | null>,
 ): Promise<number> {
   const d = await db()
   if (await d.get('meta', CHEF_SEED_FLAG)) return 0
+  // Installs seeded at V1 only get recipes introduced later (since >= 2), so a V1 recipe
+  // the user deleted or renamed is never re-added. Title match still prevents duplicates.
+  const hadV1 = !!(await d.get('meta', CHEF_SEED_FLAG_V1))
+  const defs = hadV1 ? allDefs.filter((x) => (x.since ?? 1) >= 2) : allDefs
 
   const existing = await d.getAll('recipes')
   const titles = new Set(existing.map((r) => r.title.trim().toLowerCase()))
@@ -153,7 +158,9 @@ export async function seedChefRecipesOnce(
     liveTitles.add(recipe.title.trim().toLowerCase())
     added++
   }
-  await tx.objectStore('meta').put(Date.now(), CHEF_SEED_FLAG)
+  const ts = Date.now()
+  await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG)
+  if (!hadV1) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V1)
   await tx.done
   return added
 }

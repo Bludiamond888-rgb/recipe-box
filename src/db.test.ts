@@ -14,6 +14,7 @@ function chefDefs() {
   return CHEF_RECIPES.map((def, i) => ({
     recipe: recipes[i],
     photoUrl: def.photo ? chefPhotoUrl(def.photo) : null,
+        since: def.since,
   }))
 }
 
@@ -51,7 +52,7 @@ describe('starter recipe seeding', () => {
 })
 
 describe('chef recipe seeding', () => {
-  it('seeds all 9 once with photos, favorites, no sample flag', async () => {
+  it('seeds all 10 once with photos, favorites, no sample flag', async () => {
     // Fresh DB (previous tests left meta flags; open a clean slate by deleting meta via replace + new flag check)
     // fake-indexeddb persists in-process; wipe recipes/photos but keep that starter flag is set — chef flag should still be unset from a brand-new key.
     // Use a dedicated wipe of everything including meta by reopening isn't available; clear via raw puts.
@@ -63,13 +64,13 @@ describe('chef recipe seeding', () => {
 
     expect(await db.seedStarterOnce(makeStarter, photo)).toBe(true)
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(9)
+    expect(n).toBe(10)
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
 
     const rs = await db.getRecipes()
-    expect(rs).toHaveLength(10)
+    expect(rs).toHaveLength(11)
     const chef = rs.filter((r) => r.title !== 'Blueberry Pineapple Yogurt Smoothie')
-    expect(chef).toHaveLength(9)
+    expect(chef).toHaveLength(10)
     for (const r of chef) {
       expect(r.sample).toBeUndefined()
       expect(r.favorite).toBe(true)
@@ -88,6 +89,7 @@ describe('chef recipe seeding', () => {
       'Steak, Cucumber & Tomato Salad',
       'Taiwanese Black Pepper Steak',
       'Thai Steak Salad (Yum Neua)',
+      'Vietnamese Shrimp & Chicken Spring Rolls with Peanut Sauce',
     ].sort())
     const rolls = chef.find((r) => r.title.startsWith('Shrimp Fresh Spring Rolls'))!
     expect(rolls.category).toBe('Appetizer')
@@ -116,7 +118,7 @@ describe('chef recipe seeding', () => {
       photoId: null,
     })
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(8)
+    expect(n).toBe(9)
     const titles = (await db.getRecipes()).map((r) => r.title)
     expect(titles.filter((t) => t === 'Garlic Spicy Noodles')).toHaveLength(1)
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
@@ -133,7 +135,7 @@ describe('chef recipe seeding', () => {
     await db.seedChefRecipesOnce(chefDefs(), async () => photo())
     await db.putRecipe(sample('Sample A'))
     expect(await db.deleteSampleRecipes()).toBe(1)
-    expect((await db.getRecipes()).length).toBe(10)
+    expect((await db.getRecipes()).length).toBe(11)
     expect((await db.getRecipes()).every((r) => !r.sample)).toBe(true)
   })
 
@@ -141,5 +143,26 @@ describe('chef recipe seeding', () => {
     await db.replaceAll([], [], new Map())
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
     expect(await db.getRecipes()).toHaveLength(0)
+  })
+
+  it('V1 installs get only new (since>=2) recipes, no dupes, edits untouched', async () => {
+    const d = await (await import('idb')).openDB('recipe-box', 2)
+    await d.clear('recipes')
+    await d.clear('photos')
+    await d.clear('meta')
+    await d.put('meta', Date.now(), 'chefRecipesSeededV1')
+    d.close()
+    // user kept one V1 recipe with edits, deleted the rest
+    const edited = { ...makeChefRecipes()[0], notes: 'my edits' }
+    await db.putRecipe(edited)
+    const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
+    expect(n).toBe(1)
+    const rs = await db.getRecipes()
+    expect(rs).toHaveLength(2)
+    expect(rs.find((r) => r.id === edited.id)!.notes).toBe('my edits')
+    const nr = rs.find((r) => r.title.startsWith('Vietnamese Shrimp & Chicken'))!
+    expect(nr.sample).toBeUndefined()
+    expect(nr.photoId).toBeTruthy()
+    expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
   })
 })

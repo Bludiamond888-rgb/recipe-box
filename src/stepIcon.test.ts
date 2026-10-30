@@ -27,6 +27,10 @@ describe('stepKind', () => {
     expect(stepKind('Grill over high until very hot.')).toBe('grill')
     expect(stepKind('Rest 10 minutes before carving.')).toBe('rest')
     expect(stepKind('Marinate 20 to 30 minutes.')).toBe('marinate')
+    expect(stepKind('Poach the chicken in salted water, then slice thinly.')).toBe('simmer')
+    expect(stepKind('Dip one rice paper in warm water, then lay it on a board.')).toBe('roll')
+    expect(stepKind('Place 3 shrimp halves pink-side down across the middle.')).toBe('roll')
+    expect(stepKind('Repeat with the remaining wrappers. Serve with peanut sauce.')).toBe('roll')
   })
 
   it('prefers more specific actions when several verbs appear', () => {
