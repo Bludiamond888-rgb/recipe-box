@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as db from './db'
 import {
   CATEGORIES, buildShoppingItems, formatMinutes, formatQuantity, makeBackup, parseBackup, parseTags, scaleIngredient,
-  searchRecipes, toLines, totalTime, uid, type Recipe, type ShopItem,
+  normalizeSourceUrl, searchRecipes, toLines, totalTime, uid, type Recipe, type ShopItem,
 } from './logic'
 import { compressPhoto } from './photo'
 import { SAMPLES } from './samples'
@@ -56,6 +56,14 @@ export default function App() {
         const res = await fetch(url)
         return res.ok ? res.blob() : null
       }).catch(() => 0)
+      await db.migrateChefSourceFieldsOnce(
+        CHEF_RECIPES.map((def) => ({
+          title: def.title,
+          sourceUrl: def.sourceUrl,
+          sourceLabel: def.sourceLabel,
+          sourceNote: def.sourceNote,
+        })),
+      ).catch(() => 0)
     }
     const [rs, sh, ph] = await Promise.all([db.getRecipes(), db.getShopping(), db.getAllPhotos()])
     setPhotos((old) => {
@@ -393,6 +401,23 @@ function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (
         </div>
         {r.tags.length > 0 && <div className="tags">{r.tags.map((t) => <span key={t} className="tag">#{t}</span>)}</div>}
 
+        {(r.sourceUrl || r.sourceNote) && (
+          <div className="source">
+            {r.sourceUrl && (
+              <a
+                className="source-link"
+                href={normalizeSourceUrl(r.sourceUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="source-kicker">Source</span>
+                <span className="source-label">{r.sourceLabel?.trim() || (() => { try { return new URL(normalizeSourceUrl(r.sourceUrl!)).hostname.replace(/^www\./, '') } catch { return 'Open link' } })()}</span>
+              </a>
+            )}
+            {r.sourceNote && <p className="source-note">{r.sourceNote}</p>}
+          </div>
+        )}
+
         <button className="btn primary big cook-btn" onClick={() => p.onCook(sc.factor)} disabled={!r.steps.length}>
           <IconPot size={26} /> Start Cook Mode
         </button>
@@ -524,6 +549,8 @@ function EditRecipe(p: {
   const [ingredients, setIngredients] = useState(r?.ingredients.join('\n') ?? '')
   const [steps, setSteps] = useState(r?.steps.join('\n') ?? '')
   const [notes, setNotes] = useState(r?.notes ?? '')
+  const [sourceUrl, setSourceUrl] = useState(r?.sourceUrl ?? '')
+  const [sourceLabel, setSourceLabel] = useState(r?.sourceLabel ?? '')
   const [photo, setPhoto] = useState<Blob | null | undefined>(undefined)
   const [preview, setPreview] = useState<string | undefined>(p.photo)
   const [busy, setBusy] = useState(false)
@@ -551,9 +578,16 @@ function EditRecipe(p: {
     const base: Recipe = r ?? { id: uid(), title: '', category, tags: [], prepMin: null, cookMin: null, servings: null, ingredients: [], steps: [], notes: '', favorite: false, photoId: null, createdAt: now, updatedAt: now }
     const { sample: _s, ...rest } = base
     void _s
+    const url = normalizeSourceUrl(sourceUrl)
+    const label = sourceLabel.trim()
+    const { sourceUrl: _su, sourceLabel: _sl, sourceNote: keepNote, ...restNoSource } = rest as Recipe & { sourceUrl?: string; sourceLabel?: string; sourceNote?: string }
+    void _su; void _sl
     await p.onSave({
-      ...rest, title: title.trim(), category, tags: parseTags(tags), prepMin: n(prep), cookMin: n(cook), servings: n(servings),
+      ...restNoSource, title: title.trim(), category, tags: parseTags(tags), prepMin: n(prep), cookMin: n(cook), servings: n(servings),
       ingredients: toLines(ingredients), steps: toLines(steps, true), notes: notes.trim(),
+      ...(url ? { sourceUrl: url } : {}),
+      ...(label ? { sourceLabel: label } : {}),
+      ...(keepNote ? { sourceNote: keepNote } : {}),
     }, photo)
     setBusy(false)
   }
@@ -603,6 +637,16 @@ function EditRecipe(p: {
       <label className="field"><span>Notes</span>
         <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Tips, swaps, where it came from…" />
       </label>
+
+      <div className="field-block">
+        <p className="field-block-title">Source / Inspiration <em>(optional)</em></p>
+        <label className="field"><span>Link URL</span>
+          <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="tiktok.com/@… or https://…" autoCapitalize="none" autoCorrect="off" inputMode="url" />
+        </label>
+        <label className="field"><span>Link label</span>
+          <input value={sourceLabel} onChange={(e) => setSourceLabel(e.target.value)} placeholder="e.g. TikTok · @chef" autoCapitalize="words" />
+        </label>
+      </div>
 
       <button type="submit" className="btn primary big" disabled={busy}>{busy ? 'Saving…' : 'Save recipe'}</button>
       <button type="button" className="btn big" onClick={p.onCancel}>Cancel</button>

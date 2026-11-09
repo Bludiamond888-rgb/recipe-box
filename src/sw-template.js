@@ -1,6 +1,6 @@
 /* Recipe Box service worker — generated at build time (see vite.config.ts). */
 const VERSION = '__VERSION__'
-const CACHE = `recipe-box-v1-${VERSION}`
+const CACHE = `recipe-box-v2-${VERSION}`
 const PRECACHE = __PRECACHE__
 
 self.addEventListener('install', (event) => {

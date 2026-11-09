@@ -108,7 +108,9 @@ export async function seedStarterOnce(make: () => Recipe, loadPhoto: () => Promi
 
 const CHEF_SEED_FLAG_V1 = 'chefRecipesSeededV1'
 const CHEF_SEED_FLAG_V2 = 'chefRecipesSeededV2'
-const CHEF_SEED_FLAG = 'chefRecipesSeededV3'
+const CHEF_SEED_FLAG_V3 = 'chefRecipesSeededV3'
+const CHEF_SEED_FLAG = 'chefRecipesSeededV4'
+const CHEF_SOURCE_FLAG = 'chefSourceFieldsV1'
 
 /**
  * Seed Chef recipes once per install. Skips any title that already exists.
@@ -123,13 +125,16 @@ export async function seedChefRecipesOnce(
   if (await d.get('meta', CHEF_SEED_FLAG)) return 0
   // Installs seeded at an older version only get recipes introduced later, so a recipe
   // the user deleted or renamed is never re-added. Title match still prevents duplicates.
+  const hadV3 = !!(await d.get('meta', CHEF_SEED_FLAG_V3))
   const hadV2 = !!(await d.get('meta', CHEF_SEED_FLAG_V2))
   const hadV1 = !!(await d.get('meta', CHEF_SEED_FLAG_V1))
-  const defs = hadV2
-    ? allDefs.filter((x) => (x.since ?? 1) >= 3)
-    : hadV1
-      ? allDefs.filter((x) => (x.since ?? 1) >= 2)
-      : allDefs
+  const defs = hadV3
+    ? allDefs.filter((x) => (x.since ?? 1) >= 4)
+    : hadV2
+      ? allDefs.filter((x) => (x.since ?? 1) >= 3)
+      : hadV1
+        ? allDefs.filter((x) => (x.since ?? 1) >= 2)
+        : allDefs
 
   const existing = await d.getAll('recipes')
   const titles = new Set(existing.map((r) => r.title.trim().toLowerCase()))
@@ -168,6 +173,41 @@ export async function seedChefRecipesOnce(
   await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG)
   if (!hadV1) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V1)
   if (!hadV2) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V2)
+  if (!hadV3) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V3)
   await tx.done
   return added
+}
+
+/**
+ * Fill sourceUrl / sourceLabel / sourceNote on existing Chef seed recipes that are
+ * still missing them. Matches by title only; never overwrites a field the user set.
+ * Easy to extend: add fields on CHEF_RECIPES and bump CHEF_SOURCE_FLAG.
+ */
+export async function migrateChefSourceFieldsOnce(
+  defs: Array<{ title: string; sourceUrl?: string; sourceLabel?: string; sourceNote?: string }>,
+): Promise<number> {
+  const d = await db()
+  if (await d.get('meta', CHEF_SOURCE_FLAG)) return 0
+  const byTitle = new Map(defs.map((x) => [x.title.trim().toLowerCase(), x]))
+  const recipes = await d.getAll('recipes')
+  let updated = 0
+  const tx = d.transaction(['recipes', 'meta'], 'readwrite')
+  if (await tx.objectStore('meta').get(CHEF_SOURCE_FLAG)) { await tx.done; return 0 }
+  for (const r of recipes) {
+    const def = byTitle.get(r.title.trim().toLowerCase())
+    if (!def) continue
+    let changed = false
+    const next = { ...r }
+    if (!next.sourceUrl && def.sourceUrl) { next.sourceUrl = def.sourceUrl; changed = true }
+    if (!next.sourceLabel && def.sourceLabel) { next.sourceLabel = def.sourceLabel; changed = true }
+    if (!next.sourceNote && def.sourceNote) { next.sourceNote = def.sourceNote; changed = true }
+    if (changed) {
+      next.updatedAt = Date.now()
+      await tx.objectStore('recipes').put(next)
+      updated++
+    }
+  }
+  await tx.objectStore('meta').put(Date.now(), CHEF_SOURCE_FLAG)
+  await tx.done
+  return updated
 }

@@ -127,3 +127,13 @@ describe('backup', () => {
     expect(back.recipes[0]).toMatchObject({ title: 'T', photoId: null, servings: null, ingredients: [] })
   })
 })
+
+import { normalizeSourceUrl } from './logic'
+
+describe('normalizeSourceUrl', () => {
+  it('adds https when scheme is missing and trims', () => {
+    expect(normalizeSourceUrl(' tiktok.com/@x ')).toBe('https://tiktok.com/@x')
+    expect(normalizeSourceUrl('https://example.com/a')).toBe('https://example.com/a')
+    expect(normalizeSourceUrl('')).toBe('')
+  })
+})

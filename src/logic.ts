@@ -18,6 +18,12 @@ export interface Recipe {
   sample?: boolean
   /** Starter recipe pinned to the top of the list (not removable sample data). */
   pinned?: boolean
+  /** Optional inspiration / attribution link (opens externally). */
+  sourceUrl?: string
+  /** Display label for sourceUrl (e.g. "TikTok · @user"). Falls back to the host. */
+  sourceLabel?: string
+  /** Short attribution note when there is no link, or beside one (e.g. "Created by Chef"). */
+  sourceNote?: string
   createdAt: number
   updatedAt: number
 }
@@ -31,6 +37,14 @@ export interface ShopItem {
 }
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+
+/** Trim and ensure a URL has a scheme so <a href> opens externally. Empty -> ''. */
+export function normalizeSourceUrl(raw: string): string {
+  const t = raw.trim()
+  if (!t) return ''
+  if (/^[a-z][a-z0-9+.-]*:/i.test(t)) return t
+  return `https://${t}`
+}
 
 /* ---------------- fractions ---------------- */
 
@@ -272,6 +286,9 @@ export function parseBackup(json: string): { recipes: Recipe[]; shopping: ShopIt
       photoId: typeof r.photoId === 'string' && photos.has(r.photoId) ? r.photoId : null,
       ...(r.sample ? { sample: true } : {}),
       ...(r.pinned ? { pinned: true } : {}),
+      ...(typeof r.sourceUrl === 'string' && r.sourceUrl.trim() ? { sourceUrl: r.sourceUrl.trim() } : {}),
+      ...(typeof r.sourceLabel === 'string' && r.sourceLabel.trim() ? { sourceLabel: r.sourceLabel.trim() } : {}),
+      ...(typeof r.sourceNote === 'string' && r.sourceNote.trim() ? { sourceNote: r.sourceNote.trim() } : {}),
       createdAt: num(r.createdAt) ?? now,
       updatedAt: num(r.updatedAt) ?? now,
     }))

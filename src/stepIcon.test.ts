@@ -45,6 +45,13 @@ describe('stepKind', () => {
     expect(stepKind('Heat the oven or air fryer to 425°F.')).toBe('bake')
     expect(stepKind('Cool it to about 43°C (110°F).')).toBe('rest')
     expect(stepKind('Chill at least 4 hours.')).toBe('rest')
+    expect(stepKind('Coat the chicken legs in the marinade and refrigerate overnight.')).toBe('marinate')
+    expect(stepKind('Roast in an oven preheated to 200°C for 30 minutes.')).toBe('roast')
+    expect(stepKind('Blend all the green sauce ingredients until smooth.')).toBe('blend')
+    expect(stepKind('Prep: dice the onion; scrub the mussels, and slice the squid.')).toBe('chop')
+    expect(stepKind('Build the base: sauté the onion and garlic in olive oil.')).toBe('fry')
+    expect(stepKind('Add the seafood: scatter the peas, mussels and shrimp over the rice.')).toBe('pour')
+    expect(stepKind('Gently toss in the diced avocado at the very end, so it doesn\'t get mashed.')).toBe('toss')
   })
 
   it('prefers more specific actions when several verbs appear', () => {
