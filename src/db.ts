@@ -129,7 +129,8 @@ const CHEF_SEED_FLAG_V2 = 'chefRecipesSeededV2'
 const CHEF_SEED_FLAG_V3 = 'chefRecipesSeededV3'
 const CHEF_SEED_FLAG_V4 = 'chefRecipesSeededV4'
 const CHEF_SEED_FLAG_V5 = 'chefRecipesSeededV5'
-const CHEF_SEED_FLAG = 'chefRecipesSeededV6'
+const CHEF_SEED_FLAG_V6 = 'chefRecipesSeededV6'
+const CHEF_SEED_FLAG = 'chefRecipesSeededV7'
 const CHEF_SOURCE_FLAG = 'chefSourceFieldsV1'
 
 /**
@@ -145,22 +146,25 @@ export async function seedChefRecipesOnce(
   if (await d.get('meta', CHEF_SEED_FLAG)) return 0
   // Installs seeded at an older version only get recipes introduced later, so a recipe
   // the user deleted or renamed is never re-added. Title match still prevents duplicates.
+  const hadV6 = !!(await d.get('meta', CHEF_SEED_FLAG_V6))
   const hadV5 = !!(await d.get('meta', CHEF_SEED_FLAG_V5))
   const hadV4 = !!(await d.get('meta', CHEF_SEED_FLAG_V4))
   const hadV3 = !!(await d.get('meta', CHEF_SEED_FLAG_V3))
   const hadV2 = !!(await d.get('meta', CHEF_SEED_FLAG_V2))
   const hadV1 = !!(await d.get('meta', CHEF_SEED_FLAG_V1))
-  const defs = hadV5
-    ? allDefs.filter((x) => (x.since ?? 1) >= 6)
-    : hadV4
-      ? allDefs.filter((x) => (x.since ?? 1) >= 5)
-      : hadV3
-        ? allDefs.filter((x) => (x.since ?? 1) >= 4)
-        : hadV2
-          ? allDefs.filter((x) => (x.since ?? 1) >= 3)
-          : hadV1
-            ? allDefs.filter((x) => (x.since ?? 1) >= 2)
-            : allDefs
+  const defs = hadV6
+    ? allDefs.filter((x) => (x.since ?? 1) >= 7)
+    : hadV5
+      ? allDefs.filter((x) => (x.since ?? 1) >= 6)
+      : hadV4
+        ? allDefs.filter((x) => (x.since ?? 1) >= 5)
+        : hadV3
+          ? allDefs.filter((x) => (x.since ?? 1) >= 4)
+          : hadV2
+            ? allDefs.filter((x) => (x.since ?? 1) >= 3)
+            : hadV1
+              ? allDefs.filter((x) => (x.since ?? 1) >= 2)
+              : allDefs
 
   const existing = await d.getAll('recipes')
   const titles = new Set(existing.map((r) => r.title.trim().toLowerCase()))
@@ -202,6 +206,7 @@ export async function seedChefRecipesOnce(
   if (!hadV3) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V3)
   if (!hadV4) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V4)
   if (!hadV5) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V5)
+  if (!hadV6) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V6)
   await tx.done
   return added
 }
