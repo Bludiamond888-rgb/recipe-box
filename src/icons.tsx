@@ -45,6 +45,14 @@ export const IconPlay = ({ size = 20 }: { size?: number }) => <I size={size} fil
 export const IconClose = ({ size = 22 }: { size?: number }) => <I size={size}><path d="M6 6l12 12M18 6L6 18" /></I>
 export const IconExternal = ({ size = 16 }: { size?: number }) => <I size={size}><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></I>
 
+export const IconStar = ({ filled = false, size = 22 }: { filled?: boolean; size?: number }) => (
+  <I size={size} fill={filled ? 'currentColor' : 'none'}><path d="M12 3.2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.6 7.2 18.1l.9-5.4-3.9-3.8 5.4-.8z" /></I>
+)
+export const IconCalendar = ({ size = 26 }: { size?: number }) => <I size={size}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></I>
+export const IconMic = ({ size = 22 }: { size?: number }) => <I size={size}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" /></I>
+export const IconFolder = ({ size = 22 }: { size?: number }) => <I size={size}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></I>
+export const IconImport = ({ size = 22 }: { size?: number }) => <I size={size}><path d="M12 3v10M8 9l4 4 4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" /></I>
+
 /** Placeholder tile art for recipes without a photo. */
 export const PlateArt = () => (
   <svg viewBox="0 0 100 75" className="plate-art" aria-hidden="true">

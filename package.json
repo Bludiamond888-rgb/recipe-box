@@ -1,7 +1,7 @@
 {
   "name": "recipe-box",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "screens": "node scripts/screenshots.mjs",
-    "screens:v2": "node scripts/screens-v2.mjs"
+    "screens:v2": "node scripts/screens-v2.mjs",
+    "screens:v2p": "node scripts/screens-v2p.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",

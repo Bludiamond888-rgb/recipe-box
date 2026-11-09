@@ -2,38 +2,54 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as db from './db'
 import {
   CATEGORIES, buildShoppingItems, formatMinutes, formatQuantity, makeBackup, parseBackup, parseTags, scaleIngredient,
-  normalizeSourceUrl, searchRecipes, toLines, totalTime, uid, type Recipe, type ShopItem,
+  normalizeSourceUrl, searchRecipes, toLines, totalTime, uid,
+  type Collection, type MealSlot, type Recipe, type ShopItem,
 } from './logic'
 import { compressPhoto } from './photo'
 import { SAMPLES } from './samples'
 import { STARTER_PHOTO, makeStarter } from './starter'
 import { CHEF_RECIPES, chefPhotoUrl, makeChefRecipes } from './chef'
 import {
-  IconBack, IconBook, IconCamera, IconCart, IconCheck, IconClose, IconEdit, IconExternal, IconGear, IconHeart, IconImage, IconPause,
-  IconPlay, IconPlus, IconSearch, IconSpeaker, IconStop, IconTimer, IconTrash, Logo, PlateArt, StepPic,
+  IconBack, IconBook, IconCalendar, IconCamera, IconCart, IconCheck, IconClose, IconEdit, IconExternal, IconFolder,
+  IconGear, IconHeart, IconImage, IconImport, IconMic, IconPause, IconPlay, IconPlus, IconSearch, IconSpeaker, IconStop,
+  IconTimer, IconTrash, Logo, PlateArt, StepPic,
 } from './icons'
 import { STEP_LABELS, stepKind } from './stepIcon'
 import { detectLang, formatClock, parseTimers, sourceKind, splitTitle, type SourceKind } from './cook'
 import { canSpeak, getAutoRead, setAutoRead, speak, stopSpeaking } from './speech'
+import { canListen, getVoiceTrial, setVoiceTrial, startListening, type VoiceHandle } from './voice'
+import { removeRecipeFromAllCollections, recipesForWeek, weekStart } from './organize'
+import {
+  CollectionDetail, CollectionPicker, CollectionsView, ImportView, MealPlanView, PickForCollection, PickForDay,
+  ShoppingGrouped, StarRating,
+} from './phaseViews'
 
-type Tab = 'recipes' | 'favorites' | 'shopping' | 'settings'
+type Tab = 'recipes' | 'favorites' | 'plan' | 'shopping' | 'settings'
 type View =
   | { kind: 'recipe'; id: string }
   | { kind: 'edit'; id: string | null }
   | { kind: 'cook'; id: string; factor: number }
   | { kind: 'pick' }
+  | { kind: 'collections' }
+  | { kind: 'collection'; id: string }
+  | { kind: 'pick-collection'; id: string }
+  | { kind: 'pick-day'; date: string }
+  | { kind: 'import' }
   | null
 
-const APP_VERSION = '2.0.0'
+const APP_VERSION = '2.1.0'
 
 export default function App() {
   const [ready, setReady] = useState(false)
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [shop, setShop] = useState<ShopItem[]>([])
+  const [collections, setCollections] = useState<Collection[]>([])
+  const [mealPlan, setMealPlan] = useState<MealSlot[]>([])
   const [photos, setPhotos] = useState<Record<string, string>>({})
   const [tab, setTab] = useState<Tab>('recipes')
   const [view, setViewState] = useState<View>(null)
   const [toast, setToast] = useState('')
+  const [addMenu, setAddMenu] = useState(false)
   const toastTimer = useRef<number>(0)
 
   const flash = useCallback((msg: string) => {
@@ -67,7 +83,9 @@ export default function App() {
         })),
       ).catch(() => 0)
     }
-    const [rs, sh, ph] = await Promise.all([db.getRecipes(), db.getShopping(), db.getAllPhotos()])
+    const [rs, sh, ph, cols, plan] = await Promise.all([
+      db.getRecipes(), db.getShopping(), db.getAllPhotos(), db.getCollections(), db.getMealPlan(),
+    ])
     setPhotos((old) => {
       Object.values(old).forEach((u) => URL.revokeObjectURL(u))
       const next: Record<string, string> = {}
@@ -76,6 +94,8 @@ export default function App() {
     })
     setRecipes(rs)
     setShop(sh.sort((a, b) => a.createdAt - b.createdAt))
+    setCollections(cols)
+    setMealPlan(plan)
     setReady(true)
   }, [])
 
@@ -105,6 +125,8 @@ export default function App() {
   }
 
   const saveShop = useCallback(async (items: ShopItem[]) => { setShop(items); await db.setShopping(items) }, [])
+  const saveCollections = useCallback(async (cols: Collection[]) => { setCollections(cols); await db.setCollections(cols) }, [])
+  const saveMealPlan = useCallback(async (slots: MealSlot[]) => { setMealPlan(slots); await db.setMealPlan(slots) }, [])
 
   const toggleFav = async (r: Recipe) => {
     const nr = { ...r, favorite: !r.favorite }
@@ -134,6 +156,9 @@ export default function App() {
   const removeRecipe = async (r: Recipe) => {
     await db.deleteRecipe(r)
     setRecipes((rs) => rs.filter((x) => x.id !== r.id))
+    const nextCols = removeRecipeFromAllCollections(collections, r.id)
+    await saveCollections(nextCols)
+    await saveMealPlan(mealPlan.filter((s) => s.recipeId !== r.id))
     flash('Recipe deleted')
   }
 
@@ -167,18 +192,38 @@ export default function App() {
     flash('Sample recipes removed')
   }
 
-  const current = view && 'id' in view && view.id ? recipes.find((r) => r.id === view.id) ?? null : null
-  // A view that points at a deleted recipe falls back to the list.
-  const activeView: View = view && 'id' in view && view.id && !current ? null : view
+  const recipeView = view && (view.kind === 'recipe' || view.kind === 'edit' || view.kind === 'cook')
+  const current = recipeView && view && 'id' in view && view.id ? recipes.find((r) => r.id === view.id) ?? null : null
+  // A recipe/edit/cook view that points at a deleted recipe falls back to the list.
+  // Collection / plan / import views also carry an id (or date) and must not use this check.
+  const activeView: View = recipeView && view && 'id' in view && view.id && !current ? null : view
 
-  let title = tab === 'recipes' ? 'Recipe Box' : tab === 'favorites' ? 'Favorites' : tab === 'shopping' ? 'Shopping List' : 'Settings'
+  let title = tab === 'recipes' ? 'Recipe Box' : tab === 'favorites' ? 'Favorites' : tab === 'plan' ? 'Meal Plan' : tab === 'shopping' ? 'Shopping List' : 'Settings'
   if (activeView?.kind === 'edit') title = activeView.id ? 'Edit Recipe' : 'New Recipe'
   if (activeView?.kind === 'cook') title = current ? splitTitle(current.title).main : 'Cook Mode'
   if (activeView?.kind === 'pick') title = 'Add From Recipes'
   if (activeView?.kind === 'recipe') title = current?.category ?? 'Recipe'
+  if (activeView?.kind === 'collections') title = 'Collections'
+  if (activeView?.kind === 'collection') title = collections.find((c) => c.id === activeView.id)?.name ?? 'Collection'
+  if (activeView?.kind === 'pick-collection') title = 'Add to Collection'
+  if (activeView?.kind === 'pick-day') title = 'Plan a Day'
+  if (activeView?.kind === 'import') title = 'Import Recipe'
 
   const headerAction = !activeView && (tab === 'recipes' || tab === 'favorites')
-    ? <button className="hbtn primary" onClick={() => go({ kind: 'edit', id: null })} aria-label="Add recipe"><IconPlus size={22} /><span>Add</span></button>
+    ? (
+      <div className="hmenu-wrap">
+        <button className="hbtn primary" onClick={() => setAddMenu((m) => !m)} aria-label="Add" aria-expanded={addMenu}>
+          <IconPlus size={22} /><span>Add</span>
+        </button>
+        {addMenu && (
+          <div className="hmenu" role="menu">
+            <button role="menuitem" onClick={() => { setAddMenu(false); go({ kind: 'edit', id: null }) }}><IconPlus size={18} /> New recipe</button>
+            <button role="menuitem" onClick={() => { setAddMenu(false); go({ kind: 'import' }) }}><IconImport size={18} /> Import</button>
+            <button role="menuitem" onClick={() => { setAddMenu(false); go({ kind: 'collections' }) }}><IconFolder size={18} /> Collections</button>
+          </div>
+        )}
+      </div>
+    )
     : activeView?.kind === 'recipe' && current
       ? <button className="hbtn" onClick={() => go({ kind: 'edit', id: current.id })} aria-label="Edit recipe"><IconEdit /><span>Edit</span></button>
       : null
@@ -197,15 +242,34 @@ export default function App() {
         </div>
       </header>
 
-      <main className={`main${activeView?.kind === 'cook' ? ' cooking' : ''}${activeView?.kind === 'recipe' ? ' with-cta' : ''}`}>
+      <main className={`main${activeView?.kind === 'cook' ? ' cooking' : ''}${activeView?.kind === 'recipe' ? ' with-cta' : ''}`} onClick={() => addMenu && setAddMenu(false)}>
         {!ready ? null : activeView?.kind === 'recipe' && current ? (
           <RecipeView
             key={current.id}
             r={current}
             photo={current.photoId ? photos[current.photoId] : undefined}
+            collections={collections}
             onFav={() => toggleFav(current)}
             onCook={(factor) => go({ kind: 'cook', id: current.id, factor })}
             onShop={(factor) => addToShop([{ recipe: current, factor }])}
+            onRate={async (rating) => {
+              const nr = { ...current, rating: rating || undefined, updatedAt: Date.now() }
+              setRecipes((rs) => rs.map((x) => (x.id === nr.id ? nr : x)))
+              await db.putRecipe(nr)
+            }}
+            onCookNote={async (cookNote) => {
+              const nr = { ...current, cookNote: cookNote.trim() || undefined, updatedAt: Date.now() }
+              setRecipes((rs) => rs.map((x) => (x.id === nr.id ? nr : x)))
+              await db.putRecipe(nr)
+            }}
+            onMarkCooked={async () => {
+              const nr = { ...current, lastCookedAt: Date.now(), updatedAt: Date.now() }
+              setRecipes((rs) => rs.map((x) => (x.id === nr.id ? nr : x)))
+              await db.putRecipe(nr)
+              flash('Marked as cooked')
+            }}
+            onCollections={saveCollections}
+            onManageCollections={() => go({ kind: 'collections' })}
           />
         ) : activeView?.kind === 'edit' ? (
           <EditRecipe
@@ -229,23 +293,109 @@ export default function App() {
           <CookMode r={current} factor={activeView.factor} onDone={back} />
         ) : activeView?.kind === 'pick' ? (
           <PickRecipes recipes={recipes} photos={photos} onAdd={async (rs) => { await addToShop(rs.map((recipe) => ({ recipe }))); back() }} />
+        ) : activeView?.kind === 'collections' ? (
+          <CollectionsView
+            collections={collections}
+            recipes={recipes}
+            photos={photos}
+            onChange={saveCollections}
+            onOpenRecipe={(id) => go({ kind: 'recipe', id })}
+            onOpenCollection={(id) => go({ kind: 'collection', id })}
+          />
+        ) : activeView?.kind === 'collection' ? (
+          (() => {
+            const col = collections.find((c) => c.id === activeView.id)
+            if (!col) return <p className="pad muted">Collection not found.</p>
+            return (
+              <CollectionDetail
+                collection={col}
+                recipes={recipes}
+                photos={photos}
+                onChange={async (c) => {
+                  await saveCollections(collections.map((x) => (x.id === c.id ? c : x)))
+                }}
+                onOpenRecipe={(id) => go({ kind: 'recipe', id })}
+                onAddRecipes={() => go({ kind: 'pick-collection', id: col.id })}
+              />
+            )
+          })()
+        ) : activeView?.kind === 'pick-collection' ? (
+          (() => {
+            const col = collections.find((c) => c.id === activeView.id)
+            if (!col) return null
+            return (
+              <PickForCollection
+                collection={col}
+                recipes={recipes}
+                photos={photos}
+                onDone={async (c) => {
+                  await saveCollections(collections.map((x) => (x.id === c.id ? c : x)))
+                  flash('Collection updated')
+                  back()
+                }}
+              />
+            )
+          })()
+        ) : activeView?.kind === 'pick-day' ? (
+          <PickForDay
+            date={activeView.date}
+            slots={mealPlan}
+            recipes={recipes}
+            photos={photos}
+            onDone={async (slots) => { await saveMealPlan(slots); flash('Day saved'); back() }}
+          />
+        ) : activeView?.kind === 'import' ? (
+          <ImportView
+            onCancel={back}
+            onSave={async (r, ph) => {
+              const saved = await saveRecipe(r, ph)
+              flash('Recipe imported')
+              go({ kind: 'recipe', id: saved.id }, true)
+            }}
+          />
         ) : tab === 'recipes' || tab === 'favorites' ? (
           <RecipeList
             key={tab}
             recipes={recipes}
             photos={photos}
+            collections={collections}
             favoritesOnly={tab === 'favorites'}
             onOpen={(r) => go({ kind: 'recipe', id: r.id })}
             onFav={toggleFav}
             onAdd={() => go({ kind: 'edit', id: null })}
             onSamples={loadSamples}
+            onCollections={() => go({ kind: 'collections' })}
+            onOpenCollection={(id) => go({ kind: 'collection', id })}
+          />
+        ) : tab === 'plan' ? (
+          <MealPlanView
+            slots={mealPlan}
+            recipes={recipes}
+            photos={photos}
+            onChange={saveMealPlan}
+            onOpenRecipe={(id) => go({ kind: 'recipe', id })}
+            onPickDay={(date) => go({ kind: 'pick-day', date })}
+            onSendToShop={async () => {
+              const rs = recipesForWeek(mealPlan, recipes, weekStart())
+              if (!rs.length) return
+              await addToShop(rs.map((recipe) => ({ recipe })))
+              switchTab('shopping')
+            }}
           />
         ) : tab === 'shopping' ? (
-          <Shopping items={shop} onChange={saveShop} onPick={() => go({ kind: 'pick' })} hasRecipes={recipes.length > 0} />
+          <ShoppingGrouped
+            items={shop}
+            onChange={saveShop}
+            onPick={() => go({ kind: 'pick' })}
+            onPlan={() => switchTab('plan')}
+            hasRecipes={recipes.length > 0}
+          />
         ) : (
           <Settings
             recipes={recipes}
             shop={shop}
+            collections={collections}
+            mealPlan={mealPlan}
             flash={flash}
             onReload={() => loadAll()}
             onSamples={loadSamples}
@@ -257,11 +407,12 @@ export default function App() {
       {toast && <div className="toast" role="status">{toast}</div>}
 
       {activeView?.kind !== 'cook' && <nav className="tabbar" aria-label="Sections">
-        <div className="tabbar-in">
+        <div className="tabbar-in five">
           {([
             ['recipes', 'Recipes', <IconBook key="b" />],
             ['favorites', 'Favorites', <IconHeart key="h" />],
-            ['shopping', 'Shopping', <IconCart key="c" />],
+            ['plan', 'Plan', <IconCalendar key="p" />],
+            ['shopping', 'Shop', <IconCart key="c" />],
             ['settings', 'Settings', <IconGear key="g" />],
           ] as const).map(([t, label, icon]) => (
             <button key={t} className={`tab${tab === t ? ' on' : ''}`} onClick={() => switchTab(t)} aria-current={tab === t ? 'page' : undefined}>
@@ -291,16 +442,20 @@ function tileBadge(r: Recipe) {
 }
 
 function RecipeList(p: {
-  recipes: Recipe[]; photos: Record<string, string>; favoritesOnly: boolean
+  recipes: Recipe[]; photos: Record<string, string>; collections: Collection[]; favoritesOnly: boolean
   onOpen: (r: Recipe) => void; onFav: (r: Recipe) => void; onAdd: () => void; onSamples: () => void
+  onCollections: () => void; onOpenCollection: (id: string) => void
 }) {
   const [query, setQuery] = useState('')
   const [cat, setCat] = useState<string | null>(null)
-  const pool = p.favoritesOnly ? p.recipes.filter((r) => r.favorite) : p.recipes
+  const [colId, setColId] = useState<string | null>(null)
+  const pool0 = p.favoritesOnly ? p.recipes.filter((r) => r.favorite) : p.recipes
+  const col = colId ? p.collections.find((c) => c.id === colId) : null
+  const pool = col ? pool0.filter((r) => col.recipeIds.includes(r.id)) : pool0
   const cats = useMemo(() => {
-    const used = new Set(pool.map((r) => r.category))
+    const used = new Set(pool0.map((r) => r.category))
     return [...CATEGORIES.filter((c) => used.has(c)), ...[...used].filter((c) => !(CATEGORIES as readonly string[]).includes(c))]
-  }, [pool])
+  }, [pool0])
   const list = searchRecipes(pool, { query, category: cat })
 
   if (!p.recipes.length) {
@@ -331,14 +486,18 @@ function RecipeList(p: {
         <input type="search" inputMode="search" placeholder="Search name, ingredient or tag" value={query} onChange={(e) => setQuery(e.target.value)} enterKeyHint="search" />
         {query && <button className="clear" onClick={() => setQuery('')} aria-label="Clear search">×</button>}
       </label>
-      {cats.length > 1 && (
-        <div className="chips" role="tablist">
-          <button className={`chip${cat === null ? ' on' : ''}`} onClick={() => setCat(null)}>All</button>
-          {cats.map((c) => <button key={c} className={`chip${cat === c ? ' on' : ''}`} onClick={() => setCat(cat === c ? null : c)}>{c}</button>)}
-        </div>
-      )}
+      <div className="chips" role="tablist">
+        <button className={`chip${cat === null && !colId ? ' on' : ''}`} onClick={() => { setCat(null); setColId(null) }}>All</button>
+        {cats.map((c) => <button key={c} className={`chip${cat === c ? ' on' : ''}`} onClick={() => { setColId(null); setCat(cat === c ? null : c) }}>{c}</button>)}
+        {p.collections.map((c) => (
+          <button key={c.id} className={`chip col${colId === c.id ? ' on' : ''}`} onClick={() => { setCat(null); setColId(colId === c.id ? null : c.id) }}>
+            {c.name}
+          </button>
+        ))}
+        <button className="chip ghost-chip" onClick={p.onCollections}>+ Collection</button>
+      </div>
       <div className="list-head">
-        <h3>{cat ?? (p.favoritesOnly ? 'Favorites' : 'Your recipes')}</h3>
+        <h3>{col?.name ?? cat ?? (p.favoritesOnly ? 'Favorites' : 'Your recipes')}</h3>
         <span className="list-count">{list.length}</span>
       </div>
       {list.length === 0 ? (
@@ -360,7 +519,8 @@ function RecipeList(p: {
                   <h3>{main}</h3>
                   <span className="card-meta">
                     {sub && <span className="zh" lang="zh-CN">{sub}</span>}
-                    {sub && t ? ' · ' : ''}
+                    {sub && (t || r.rating) ? ' · ' : ''}
+                    {r.rating ? `${'★'.repeat(r.rating)}${t ? ' · ' : ''}` : ''}
                     {t ? formatMinutes(t) : ''}
                   </span>
                 </div>
@@ -419,12 +579,20 @@ function SourceCard({ r }: { r: Recipe }) {
   )
 }
 
-function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (factor: number) => void; onShop: (factor: number) => void }) {
+function RecipeView(p: {
+  r: Recipe; photo?: string; collections: Collection[]
+  onFav: () => void; onCook: (factor: number) => void; onShop: (factor: number) => void
+  onRate: (n: number) => void; onCookNote: (note: string) => void; onMarkCooked: () => void
+  onCollections: (cols: Collection[]) => void; onManageCollections: () => void
+}) {
   const { r } = p
   const sc = useScale(r)
   const { main, sub } = splitTitle(r.title)
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [note, setNote] = useState(r.cookNote ?? '')
+  const [showCols, setShowCols] = useState(false)
   const toggle = (i: number) => setChecked((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })
+  const cooked = r.lastCookedAt ? new Date(r.lastCookedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null
   return (
     <div className="recipe">
       <div className="hero">
@@ -446,8 +614,33 @@ function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (
           {totalTime(r) && r.prepMin && r.cookMin ? <div><b>{formatMinutes(totalTime(r))}</b><span>Total</span></div> : null}
           {r.servings ? <div><b>{formatQuantity(r.servings)}</b><span>Serves</span></div> : null}
         </div>
+        <div className="rate-row">
+          <StarRating value={r.rating} onChange={p.onRate} />
+          <button className="link" onClick={p.onMarkCooked}>{cooked ? `Cooked ${cooked}` : 'Mark cooked'}</button>
+        </div>
         <SourceCard r={r} />
         {r.tags.length > 0 && <div className="tags">{r.tags.map((t) => <span key={t} className="tag">#{t}</span>)}</div>}
+        <section className="sec">
+          <div className="sec-head">
+            <h3>Collections</h3>
+            <button className="link" onClick={() => setShowCols((s) => !s)}>{showCols ? 'Hide' : 'Add to…'}</button>
+          </div>
+          {showCols && (
+            <CollectionPicker
+              collections={p.collections}
+              recipeId={r.id}
+              onChange={p.onCollections}
+              onManage={p.onManageCollections}
+            />
+          )}
+          {!showCols && p.collections.some((c) => c.recipeIds.includes(r.id)) && (
+            <div className="tags">
+              {p.collections.filter((c) => c.recipeIds.includes(r.id)).map((c) => (
+                <span key={c.id} className="tag col-tag">{c.name}</span>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="sec">
           <div className="sec-head">
@@ -490,6 +683,19 @@ function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (
             </ol>
           </section>
         )}
+
+        <section className="sec">
+          <h3>Your cook notes</h3>
+          <p className="muted" style={{ marginTop: -6 }}>What you changed last time — stays on this phone.</p>
+          <textarea
+            className="cook-note"
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onBlur={() => { if ((r.cookNote ?? '') !== note.trim()) p.onCookNote(note) }}
+            placeholder="e.g. Extra chili, 2 min less sear…"
+          />
+        </section>
 
         {r.notes && (
           <section className="sec">
@@ -557,6 +763,11 @@ function CookMode({ r, factor, onDone }: { r: Recipe; factor: number; onDone: ()
   const [autoRead, setAuto] = useState(getAutoRead)
   const [timers, setTimers] = useState<RunTimer[]>([])
   const [, setNow] = useState(0)
+  const listenOk = canListen()
+  const [voiceOn, setVoiceOn] = useState(() => listenOk && getVoiceTrial())
+  const [listenStatus, setListenStatus] = useState<'off' | 'listening' | 'error'>('off')
+  const [lastHeard, setLastHeard] = useState('')
+  const listenRef = useRef<VoiceHandle | null>(null)
   const n = r.steps.length
   const step = r.steps[i] ?? ''
   const kind = stepKind(step)
@@ -638,6 +849,39 @@ function CookMode({ r, factor, onDone }: { r: Recipe; factor: number; onDone: ()
   }
   const toggleAuto = () => { const v = !autoRead; setAuto(v); setAutoRead(v) }
 
+  // Voice commands trial (off by default; hidden when SpeechRecognition is missing).
+  useEffect(() => {
+    listenRef.current?.stop()
+    listenRef.current = null
+    if (!voiceOn || !listenOk) { setListenStatus('off'); return }
+    const handle = startListening(
+      (cmd, raw) => {
+        setLastHeard(raw)
+        if (cmd === 'next') setI((x) => Math.min(n - 1, x + 1))
+        else if (cmd === 'back') setI((x) => Math.max(0, x - 1))
+        else if (cmd === 'repeat') readStep(i)
+        else if (cmd === 'timer') {
+          const f = parseTimers(r.steps[i] ?? '')[0]
+          if (f) startTimer(f.label, f.seconds)
+        } else if (cmd === 'done' && i >= n - 1) onDone()
+      },
+      (s, detail) => {
+        if (s === 'listening') setListenStatus('listening')
+        else if (s === 'error') { setListenStatus('error'); setLastHeard(detail ?? 'error') }
+        else setListenStatus('off')
+      },
+    )
+    listenRef.current = handle
+    return () => { handle?.stop(); listenRef.current = null }
+  }, [voiceOn, listenOk, i, n]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleVoice = () => {
+    const v = !voiceOn
+    setVoiceOn(v)
+    setVoiceTrial(v)
+    if (!v) setLastHeard('')
+  }
+
   return (
     <div className="cook">
       <div className="cook-progress" aria-hidden="true">
@@ -660,6 +904,22 @@ function CookMode({ r, factor, onDone }: { r: Recipe; factor: number; onDone: ()
           <button className={`auto-read${autoRead ? ' on' : ''}`} role="switch" aria-checked={autoRead} onClick={toggleAuto}>
             <span className="switch"><i /></span> Auto-read
           </button>
+        </div>
+      )}
+
+      {listenOk && (
+        <div className="voice-trial">
+          <button className={`mic-btn${voiceOn ? ' on' : ''}`} onClick={toggleVoice} aria-pressed={voiceOn}>
+            <IconMic size={20} /> {voiceOn ? 'Listening…' : 'Voice trial'}
+          </button>
+          <span className="trial-badge">Trial</span>
+          {voiceOn && (
+            <p className="mic-hint">
+              {listenStatus === 'listening' ? 'Say next, back, repeat, or start timer.' : listenStatus === 'error' ? lastHeard || 'Mic error' : 'Starting…'}
+              {lastHeard && listenStatus === 'listening' ? ` Heard: “${lastHeard}”` : ''}
+            </p>
+          )}
+          {!voiceOn && <p className="mic-hint">Optional. Home Screen apps may not listen reliably on iPhone.</p>}
         </div>
       )}
 
@@ -832,53 +1092,6 @@ function EditRecipe(p: {
 
 /* ------------------------------------------------------------------ */
 
-function Shopping({ items, onChange, onPick, hasRecipes }: { items: ShopItem[]; onChange: (i: ShopItem[]) => void; onPick: () => void; hasRecipes: boolean }) {
-  const [text, setText] = useState('')
-  const open = items.filter((i) => !i.checked)
-  const done = items.filter((i) => i.checked)
-  const toggle = (id: string) => onChange(items.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)))
-  const add = () => {
-    const lines = toLines(text)
-    if (!lines.length) return
-    onChange([...items, ...lines.map((t, k) => ({ id: uid(), text: t, checked: false, createdAt: Date.now() + k }))])
-    setText('')
-  }
-  const Row = (i: ShopItem) => (
-    <li key={i.id} className={i.checked ? 'done' : ''} onClick={() => toggle(i.id)}>
-      <span className="box">{i.checked && <IconCheck />}</span>
-      <span className="shop-text">{i.text}{i.recipeTitle && <small>{i.recipeTitle}</small>}</span>
-    </li>
-  )
-  return (
-    <div className="pad">
-      {hasRecipes && <button className="btn primary big" onClick={onPick}><IconBook /> Add from recipes</button>}
-      <form className="add-row" onSubmit={(e) => { e.preventDefault(); add() }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add an item, e.g. 1 dozen eggs" enterKeyHint="done" />
-        <button type="submit" className="btn add-btn" aria-label="Add item"><IconPlus /></button>
-      </form>
-      {!items.length ? (
-        <div className="empty small">
-          <div className="empty-heart"><IconCart /></div>
-          <h2>Your list is empty</h2>
-          <p>{hasRecipes ? 'Pick recipes to pull in their ingredients, or type items above.' : 'Type items above, or add some recipes first.'}</p>
-        </div>
-      ) : (
-        <>
-          <ul className="checklist shop">{open.map(Row)}</ul>
-          {done.length > 0 && <>
-            <h4 className="done-head">In the cart ({done.length})</h4>
-            <ul className="checklist shop">{done.map(Row)}</ul>
-          </>}
-          <div className="two">
-            <button className="btn big" disabled={!done.length} onClick={() => onChange(open)}>Clear checked</button>
-            <button className="btn danger big" onClick={() => { if (confirm('Clear the whole shopping list?')) onChange([]) }}>Clear all</button>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
 function PickRecipes({ recipes, photos, onAdd }: { recipes: Recipe[]; photos: Record<string, string>; onAdd: (r: Recipe[]) => void }) {
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
@@ -912,7 +1125,8 @@ function PickRecipes({ recipes, photos, onAdd }: { recipes: Recipe[]; photos: Re
 /* ------------------------------------------------------------------ */
 
 function Settings(p: {
-  recipes: Recipe[]; shop: ShopItem[]; flash: (m: string) => void; onReload: () => Promise<void>
+  recipes: Recipe[]; shop: ShopItem[]; collections: Collection[]; mealPlan: MealSlot[]
+  flash: (m: string) => void; onReload: () => Promise<void>
   onSamples: () => Promise<void>; onRemoveSamples: () => Promise<void>
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -922,7 +1136,9 @@ function Settings(p: {
   const exportBackup = async () => {
     setBusy(true)
     try {
-      const b = await makeBackup(p.recipes, p.shop, await db.getAllPhotos())
+      const b = await makeBackup(p.recipes, p.shop, await db.getAllPhotos(), {
+        collections: p.collections, mealPlan: p.mealPlan,
+      })
       const name = `recipe-box-backup-${new Date().toISOString().slice(0, 10)}.json`
       const file = new File([JSON.stringify(b)], name, { type: 'application/json' })
       const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean }
@@ -946,7 +1162,9 @@ function Settings(p: {
       const data = parseBackup(await f.text())
       if (!confirm(`Restore ${data.recipes.length} recipe${data.recipes.length === 1 ? '' : 's'} with ${data.photos.size} photo${data.photos.size === 1 ? '' : 's'}? This replaces everything currently in the app.`)) return
       setBusy(true)
-      await db.replaceAll(data.recipes, data.shopping, data.photos)
+      await db.replaceAll(data.recipes, data.shopping, data.photos, {
+        collections: data.collections, mealPlan: data.mealPlan, clearOrganize: true,
+      })
       await p.onReload()
       p.flash('Backup restored')
     } catch (e) {
@@ -959,12 +1177,12 @@ function Settings(p: {
     <div className="pad settings">
       <section className="panel">
         <h3>Your recipes</h3>
-        <p className="muted">{p.recipes.length} recipe{p.recipes.length === 1 ? '' : 's'} · {p.recipes.filter((r) => r.photoId).length} with photos · saved on this device only.</p>
+        <p className="muted">{p.recipes.length} recipe{p.recipes.length === 1 ? '' : 's'} · {p.collections.length} collection{p.collections.length === 1 ? '' : 's'} · {p.recipes.filter((r) => r.photoId).length} with photos · saved on this device only.</p>
       </section>
 
       <section className="panel">
         <h3>Backup &amp; restore</h3>
-        <p className="muted">Save everything — recipes, photos and your shopping list — to one file (e.g. in Files or iCloud Drive). Restore it on any phone.</p>
+        <p className="muted">Save everything — recipes, photos, shopping list, collections, ratings, notes and meal plan — to one file. Restore it on any phone.</p>
         <button className="btn primary big" onClick={exportBackup} disabled={busy}>Back up now</button>
         <button className="btn big" onClick={() => fileRef.current?.click()} disabled={busy}>Restore from backup</button>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => { restore(e.target.files?.[0]); e.target.value = '' }} />
@@ -979,10 +1197,10 @@ function Settings(p: {
 
       <section className="panel">
         <h3>Erase</h3>
-        <p className="muted">Delete every recipe, photo and the shopping list from this device.</p>
+        <p className="muted">Delete every recipe, photo, shopping list, collection and meal plan from this device.</p>
         <button className="btn danger big" onClick={async () => {
-          if (!confirm('Erase ALL recipes, photos and the shopping list? Consider backing up first.')) return
-          await db.replaceAll([], [], new Map())
+          if (!confirm('Erase ALL recipes, photos, shopping list, collections and meal plan? Consider backing up first.')) return
+          await db.replaceAll([], [], new Map(), { clearOrganize: true })
           await p.onReload()
           p.flash('Everything erased')
         }}>Erase all data</button>

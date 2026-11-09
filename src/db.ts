@@ -1,6 +1,6 @@
-// IndexedDB storage (on-device). Recipes, photos (JPEG Blobs) and the shopping list.
+// IndexedDB storage (on-device). Recipes, photos, shopping list, collections & meal plan (meta).
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import { uid, type Recipe, type ShopItem } from './logic'
+import { uid, type Collection, type MealSlot, type Recipe, type ShopItem } from './logic'
 
 interface Schema extends DBSchema {
   recipes: { key: string; value: Recipe }
@@ -14,7 +14,7 @@ interface StoredPhoto { type: string; buf: ArrayBuffer }
 const toStored = async (b: Blob): Promise<StoredPhoto> => ({ type: b.type || 'image/jpeg', buf: await b.arrayBuffer() })
 const fromStored = (p: StoredPhoto) => new Blob([p.buf], { type: p.type })
 
-/** Storage identity. 2.0 keeps the 1.x database name, version and stores, so every install carries over. */
+/** Storage identity. Same DB name/version/stores as 1.x–2.0 so installs carry over; Phase 2+ extras live in meta. */
 export const DB_NAME = 'recipe-box'
 export const DB_VERSION = 2
 export const STORES = ['recipes', 'photos', 'shopping', 'meta'] as const
@@ -60,18 +60,31 @@ export async function setShopping(items: ShopItem[]) {
   await tx.done
 }
 
-/** Replace everything (used by restore and erase). */
-export async function replaceAll(recipes: Recipe[], shopping: ShopItem[], photos: Map<string, Blob>) {
+/** Replace recipes/photos/shopping (used by restore and erase). Optionally writes collections + meal plan into meta. */
+export async function replaceAll(
+  recipes: Recipe[],
+  shopping: ShopItem[],
+  photos: Map<string, Blob>,
+  extras?: { collections?: Collection[]; mealPlan?: MealSlot[]; clearOrganize?: boolean },
+) {
   // Convert blobs before opening the transaction (awaiting non-IDB work would auto-commit it).
   const stored = await Promise.all([...photos].map(async ([k, v]) => [k, await toStored(v)] as const))
   const d = await db()
-  const tx = d.transaction(['recipes', 'photos', 'shopping'], 'readwrite')
+  const tx = d.transaction(['recipes', 'photos', 'shopping', 'meta'], 'readwrite')
   await Promise.all([tx.objectStore('recipes').clear(), tx.objectStore('photos').clear(), tx.objectStore('shopping').clear()])
   for (const r of recipes) await tx.objectStore('recipes').put(r)
   for (const [k, v] of stored) await tx.objectStore('photos').put(v, k)
   for (const i of shopping) await tx.objectStore('shopping').put(i)
+  if (extras?.clearOrganize || extras?.collections || extras?.mealPlan) {
+    if (extras.clearOrganize || extras.collections) await tx.objectStore('meta').put(extras.collections ?? [], COLLECTIONS_KEY)
+    if (extras.clearOrganize || extras.mealPlan) await tx.objectStore('meta').put(extras.mealPlan ?? [], MEAL_PLAN_KEY)
+  }
   await tx.done
 }
+
+const COLLECTIONS_KEY = 'collections'
+const MEAL_PLAN_KEY = 'mealPlan'
+
 
 /** Delete only recipes flagged as sample data (the starter recipe and the user's own recipes stay). */
 export async function deleteSampleRecipes() {
@@ -225,4 +238,33 @@ export async function migrateChefSourceFieldsOnce(
   await tx.objectStore('meta').put(Date.now(), CHEF_SOURCE_FLAG)
   await tx.done
   return updated
+}
+
+/* ---------------- Phase 2–3: collections & meal plan (meta keys; no schema bump) ---------------- */
+
+export async function getCollections(): Promise<Collection[]> {
+  const v = await (await db()).get('meta', COLLECTIONS_KEY)
+  return Array.isArray(v) ? (v as Collection[]) : []
+}
+
+export async function setCollections(cols: Collection[]) {
+  await (await db()).put('meta', cols, COLLECTIONS_KEY)
+}
+
+export async function getMealPlan(): Promise<MealSlot[]> {
+  const v = await (await db()).get('meta', MEAL_PLAN_KEY)
+  return Array.isArray(v) ? (v as MealSlot[]) : []
+}
+
+export async function setMealPlan(slots: MealSlot[]) {
+  await (await db()).put('meta', slots, MEAL_PLAN_KEY)
+}
+
+/** Clear collections + meal plan meta (used by Erase all). Seed flags stay. */
+export async function clearOrganizeMeta() {
+  const d = await db()
+  const tx = d.transaction('meta', 'readwrite')
+  await tx.store.delete(COLLECTIONS_KEY)
+  await tx.store.delete(MEAL_PLAN_KEY)
+  await tx.done
 }

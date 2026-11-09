@@ -24,8 +24,28 @@ export interface Recipe {
   sourceLabel?: string
   /** Short attribution note when there is no link, or beside one (e.g. "Created by Chef"). */
   sourceNote?: string
+  /** User star rating 1–5 (Phase 2). */
+  rating?: number
+  /** Personal cook notes — what you changed last time (Phase 2). Separate from recipe notes. */
+  cookNote?: string
+  /** Last time you marked it cooked (ms). */
+  lastCookedAt?: number
   createdAt: number
   updatedAt: number
+}
+
+export interface Collection {
+  id: string
+  name: string
+  recipeIds: string[]
+  createdAt: number
+  updatedAt: number
+}
+
+/** One recipe assigned to a calendar day on the weekly meal plan. */
+export interface MealSlot {
+  date: string // YYYY-MM-DD (local)
+  recipeId: string
 }
 
 export interface ShopItem {
@@ -218,7 +238,7 @@ export function buildShoppingItems(
 /* ---------------- backup ---------------- */
 
 export const BACKUP_APP = 'recipe-box'
-export const BACKUP_VERSION = 1
+export const BACKUP_VERSION = 2  // v2 adds collections + mealPlan; v1 still restores
 
 export interface Backup {
   app: typeof BACKUP_APP
@@ -227,6 +247,8 @@ export interface Backup {
   recipes: Recipe[]
   shopping: ShopItem[]
   photos: Record<string, string> // photoId -> data URL
+  collections?: Collection[]
+  mealPlan?: MealSlot[]
 }
 
 export async function blobToDataUrl(b: Blob): Promise<string> {
@@ -245,20 +267,36 @@ export function dataUrlToBlob(url: string): Blob {
   return new Blob([bytes], { type: m[1] || 'image/jpeg' })
 }
 
-export async function makeBackup(recipes: Recipe[], shopping: ShopItem[], photos: Map<string, Blob>, now = new Date()): Promise<Backup> {
+export async function makeBackup(
+  recipes: Recipe[],
+  shopping: ShopItem[],
+  photos: Map<string, Blob>,
+  extrasOrNow: { collections?: Collection[]; mealPlan?: MealSlot[] } | Date = {},
+  nowArg?: Date,
+): Promise<Backup> {
+  const extras = extrasOrNow instanceof Date ? {} : extrasOrNow
+  const now = extrasOrNow instanceof Date ? extrasOrNow : (nowArg ?? new Date())
   const enc: Record<string, string> = {}
   for (const r of recipes) {
     const b = r.photoId ? photos.get(r.photoId) : undefined
     if (r.photoId && b) enc[r.photoId] = await blobToDataUrl(b)
   }
-  return { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: now.toISOString(), recipes, shopping, photos: enc }
+  return {
+    app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: now.toISOString(),
+    recipes, shopping, photos: enc,
+    collections: extras.collections ?? [],
+    mealPlan: extras.mealPlan ?? [],
+  }
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && isFinite(v) && v >= 0 ? v : null)
 const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [])
 
 /** Validate + normalise a parsed backup file. Throws a friendly Error if it isn't one of ours. */
-export function parseBackup(json: string): { recipes: Recipe[]; shopping: ShopItem[]; photos: Map<string, Blob> } {
+export function parseBackup(json: string): {
+  recipes: Recipe[]; shopping: ShopItem[]; photos: Map<string, Blob>
+  collections: Collection[]; mealPlan: MealSlot[]
+} {
   let data: unknown
   try { data = JSON.parse(json) } catch { throw new Error('That file isn’t valid JSON.') }
   const d = data as Partial<Backup>
@@ -289,11 +327,26 @@ export function parseBackup(json: string): { recipes: Recipe[]; shopping: ShopIt
       ...(typeof r.sourceUrl === 'string' && r.sourceUrl.trim() ? { sourceUrl: r.sourceUrl.trim() } : {}),
       ...(typeof r.sourceLabel === 'string' && r.sourceLabel.trim() ? { sourceLabel: r.sourceLabel.trim() } : {}),
       ...(typeof r.sourceNote === 'string' && r.sourceNote.trim() ? { sourceNote: r.sourceNote.trim() } : {}),
+      ...(typeof r.rating === 'number' && r.rating >= 1 && r.rating <= 5 ? { rating: Math.round(r.rating) } : {}),
+      ...(typeof r.cookNote === 'string' && r.cookNote.trim() ? { cookNote: r.cookNote.trim() } : {}),
+      ...(typeof r.lastCookedAt === 'number' && r.lastCookedAt > 0 ? { lastCookedAt: r.lastCookedAt } : {}),
       createdAt: num(r.createdAt) ?? now,
       updatedAt: num(r.updatedAt) ?? now,
     }))
   const shopping: ShopItem[] = (Array.isArray(d.shopping) ? d.shopping : [])
     .filter((i): i is ShopItem => !!i && typeof i === 'object' && typeof (i as ShopItem).text === 'string')
     .map((i) => ({ id: typeof i.id === 'string' ? i.id : uid(), text: i.text, recipeTitle: typeof i.recipeTitle === 'string' ? i.recipeTitle : undefined, checked: !!i.checked, createdAt: num(i.createdAt) ?? now }))
-  return { recipes, shopping, photos }
+  const collections: Collection[] = (Array.isArray(d.collections) ? d.collections : [])
+    .filter((c): c is Collection => !!c && typeof c === 'object' && typeof (c as Collection).name === 'string')
+    .map((c) => ({
+      id: typeof c.id === 'string' && c.id ? c.id : uid(),
+      name: c.name.trim() || 'Collection',
+      recipeIds: Array.isArray(c.recipeIds) ? c.recipeIds.filter((x): x is string => typeof x === 'string') : [],
+      createdAt: num(c.createdAt) ?? now,
+      updatedAt: num(c.updatedAt) ?? now,
+    }))
+  const mealPlan: MealSlot[] = (Array.isArray(d.mealPlan) ? d.mealPlan : [])
+    .filter((s): s is MealSlot => !!s && typeof s === 'object' && typeof (s as MealSlot).date === 'string' && typeof (s as MealSlot).recipeId === 'string')
+    .map((s) => ({ date: s.date, recipeId: s.recipeId }))
+  return { recipes, shopping, photos, collections, mealPlan }
 }
