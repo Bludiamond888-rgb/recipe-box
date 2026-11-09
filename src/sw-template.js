@@ -1,6 +1,6 @@
-/* Recipe Box service worker — generated at build time (see vite.config.ts). */
+/* Sexy Recipe service worker — generated at build time (see vite.config.ts). */
 const VERSION = '__VERSION__'
-const CACHE = `recipe-box-v4-${VERSION}`  // v4 = Phases 2–4 (organize, plan, import, voice trial)
+const CACHE = `recipe-box-v5-${VERSION}`  // v5 = rename to Sexy Recipe (data stores unchanged)
 const PRECACHE = __PRECACHE__
 
 self.addEventListener('install', (event) => {

@@ -122,7 +122,7 @@ describe('backup', () => {
   })
   it('rejects foreign files and drops dangling photo refs', () => {
     expect(() => parseBackup('nope')).toThrow(/JSON/)
-    expect(() => parseBackup('{"app":"other","recipes":[]}')).toThrow(/Recipe Box/)
+    expect(() => parseBackup('{"app":"other","recipes":[]}')).toThrow(/Sexy Recipe/)
     const back = parseBackup(JSON.stringify({ app: 'recipe-box', version: 1, recipes: [{ title: 'T', photoId: 'gone', servings: -1 }], photos: {} }))
     expect(back.recipes[0]).toMatchObject({ title: 'T', photoId: null, servings: null, ingredients: [] })
   })

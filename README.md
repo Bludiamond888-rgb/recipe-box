@@ -1,4 +1,7 @@
-# Recipe Box
+# Sexy Recipe
+
+Formerly Recipe Box. Same GitHub Pages URL (`…/recipe-box/`); IndexedDB and backup app key stay `recipe-box` so installs carry over.
+
 
 A small installable web app (PWA) for keeping your own recipes on your phone — photos, ingredients, steps,
 a serving scaler, a big-text Cook mode and a shopping list. Everything is stored on the device (IndexedDB);
@@ -29,3 +32,7 @@ use **Settings → Back up now** to save a JSON file (photos included) and **Res
 - **Import**: paste caption/text parser + link fetch for schema.org Recipe JSON-LD when CORS allows (Xiaohongshu/TikTok/Instagram usually block — paste fallback).
 - **Voice trial** (cook mode): optional, off by default; Web Speech recognition for next/back/repeat/start timer; hidden when unsupported.
 - Backup v2 includes collections + meal plan; v1 backups still restore. Collections/meal plan live in the `meta` store (no DB version bump). Screens: `npm run screens:v2p`.
+
+## Rename — Sexy Recipe
+
+User-facing name is **Sexy Recipe** (manifest, title, header, about). Storage identity and backup `app` key remain `recipe-box`. SW cache prefix bumped to `recipe-box-v5-`.

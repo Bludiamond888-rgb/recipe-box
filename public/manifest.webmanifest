@@ -1,7 +1,7 @@
 {
-  "name": "Recipe Box",
-  "short_name": "Recipes",
-  "description": "Your own recipes with photos, serving scaler, cook mode and shopping list. Data stays on your device.",
+  "name": "Sexy Recipe",
+  "short_name": "Sexy Recipe",
+  "description": "Sexy Recipe — your own recipes with photos, serving scaler, cook mode and shopping list. Data stays on your device.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

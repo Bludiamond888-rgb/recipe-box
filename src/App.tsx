@@ -37,7 +37,7 @@ type View =
   | { kind: 'import' }
   | null
 
-const APP_VERSION = '2.1.0'
+const APP_VERSION = '2.1.1'
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -198,7 +198,7 @@ export default function App() {
   // Collection / plan / import views also carry an id (or date) and must not use this check.
   const activeView: View = recipeView && view && 'id' in view && view.id && !current ? null : view
 
-  let title = tab === 'recipes' ? 'Recipe Box' : tab === 'favorites' ? 'Favorites' : tab === 'plan' ? 'Meal Plan' : tab === 'shopping' ? 'Shopping List' : 'Settings'
+  let title = tab === 'recipes' ? 'Sexy Recipe' : tab === 'favorites' ? 'Favorites' : tab === 'plan' ? 'Meal Plan' : tab === 'shopping' ? 'Shopping List' : 'Settings'
   if (activeView?.kind === 'edit') title = activeView.id ? 'Edit Recipe' : 'New Recipe'
   if (activeView?.kind === 'cook') title = current ? splitTitle(current.title).main : 'Cook Mode'
   if (activeView?.kind === 'pick') title = 'Add From Recipes'
@@ -1139,11 +1139,11 @@ function Settings(p: {
       const b = await makeBackup(p.recipes, p.shop, await db.getAllPhotos(), {
         collections: p.collections, mealPlan: p.mealPlan,
       })
-      const name = `recipe-box-backup-${new Date().toISOString().slice(0, 10)}.json`
+      const name = `sexy-recipe-backup-${new Date().toISOString().slice(0, 10)}.json`
       const file = new File([JSON.stringify(b)], name, { type: 'application/json' })
       const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean }
       if (nav.canShare?.({ files: [file] })) {
-        try { await navigator.share({ files: [file], title: 'Recipe Box backup' }) } catch { /* cancelled */ }
+        try { await navigator.share({ files: [file], title: 'Sexy Recipe backup' }) } catch { /* cancelled */ }
       } else {
         const a = document.createElement('a')
         a.href = URL.createObjectURL(file)
@@ -1206,7 +1206,7 @@ function Settings(p: {
         }}>Erase all data</button>
       </section>
 
-      <p className="about"><Logo size={22} /> Recipe Box · v{APP_VERSION}<br />Tip: in Safari tap Share → Add to Home Screen.</p>
+      <p className="about"><Logo size={22} /> Sexy Recipe · v{APP_VERSION}<br />Tip: in Safari tap Share → Add to Home Screen.</p>
     </div>
   )
 }

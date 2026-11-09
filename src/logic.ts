@@ -300,7 +300,7 @@ export function parseBackup(json: string): {
   let data: unknown
   try { data = JSON.parse(json) } catch { throw new Error('That file isn’t valid JSON.') }
   const d = data as Partial<Backup>
-  if (!d || typeof d !== 'object' || d.app !== BACKUP_APP || !Array.isArray(d.recipes)) throw new Error('That file isn’t a Recipe Box backup.')
+  if (!d || typeof d !== 'object' || d.app !== BACKUP_APP || !Array.isArray(d.recipes)) throw new Error('That file isn’t a Sexy Recipe backup.')
   if (typeof d.version === 'number' && d.version > BACKUP_VERSION) throw new Error('This backup was made by a newer version of the app.')
   const photos = new Map<string, Blob>()
   for (const [id, url] of Object.entries(d.photos ?? {})) {
