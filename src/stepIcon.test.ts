@@ -52,6 +52,8 @@ describe('stepKind', () => {
     expect(stepKind('Build the base: sauté the onion and garlic in olive oil.')).toBe('fry')
     expect(stepKind('Add the seafood: scatter the peas, mussels and shrimp over the rice.')).toBe('pour')
     expect(stepKind('Gently toss in the diced avocado at the very end, so it doesn\'t get mashed.')).toBe('toss')
+    expect(stepKind('Make the chimichurri first. Mix the shallot and garlic.')).toBe('mix')
+    expect(stepKind('Add the butter and rosemary and spoon the foaming butter over the steaks.')).toBe('pour')
   })
 
   it('prefers more specific actions when several verbs appear', () => {

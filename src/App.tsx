@@ -410,11 +410,18 @@ function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <span className="source-kicker">Source</span>
+                <span className="source-kicker">{/^inspired by\b/i.test(r.sourceNote ?? '') ? 'Inspired by' : 'Source'}</span>
                 <span className="source-label">{r.sourceLabel?.trim() || (() => { try { return new URL(normalizeSourceUrl(r.sourceUrl!)).hostname.replace(/^www\./, '') } catch { return 'Open link' } })()}</span>
               </a>
             )}
-            {r.sourceNote && <p className="source-note">{r.sourceNote}</p>}
+            {r.sourceNote && (() => {
+              const note = r.sourceNote.trim()
+              if (/^inspired by\b/i.test(note)) {
+                const rest = note.includes('·') ? note.split('·').slice(1).join('·').trim() : ''
+                return rest ? <p className="source-note">{rest}</p> : null
+              }
+              return <p className="source-note">{note}</p>
+            })()}
           </div>
         )}
 
