@@ -60,12 +60,12 @@ const RULES: { kind: StepKind; re: RegExp }[] = [
   { kind: 'grill', re: /\b(grill|grilled)\b/i },
   { kind: 'fry', re: /\b(stir[- ]?fry|saute|pan[- ]?fry|deep[- ]?fry|fry)\b|sauté/i },
   { kind: 'bake', re: /\b(bake|baked|oven|preheat the oven|heat the oven|air fryer)\b/i },
-  { kind: 'roast', re: /\b(roast|roasted)\b/i },
+  { kind: 'roast', re: /\b(roast|roasted|slow[- ]?roast)\b/i },
   { kind: 'boil', re: /\b(boil|boiling|bring .+ to a boil|soft[- ]?boil)\b/i },
   { kind: 'simmer', re: /\b(poach|poached|simmer|reduce|reduces|bubble|ferment|yogurt maker|keep warm)\b/i },
   { kind: 'chop', re: /\b(chop|dice|mince|carve|halve|pat .+ dry|scrub|prep:)\b|\bslice\b/i },
   { kind: 'whisk', re: /\b(whisk|peanut sauce ingredients)\b/i },
-  { kind: 'mix', re: /\b(mix|combine|mash|emulsif|chimichurri first)\b/i },
+  { kind: 'mix', re: /\b(mix|combine|mash|emulsif|chimichurri first|soften)\b/i },
   { kind: 'toss', re: /\b(toss)\b/i },
   { kind: 'stir', re: /\b(stir|stirring)\b/i },
   { kind: 'marinate', re: /\b(marinat\w*|coat .+ with|coat the|refrigerate overnight)\b/i },
@@ -86,6 +86,7 @@ export function stepKind(text: string): StepKind {
   // Whole-step phrases that would otherwise lose to a nested high-priority verb.
   if (/\bbuild the bowl\b/i.test(t)) return 'plate'
   if (/\bdiced avocado\b/i.test(t)) return 'toss'
+  if (/\bmash the roasted\b/i.test(t)) return 'mix'
   let best: { kind: StepKind; score: number; index: number } | null = null
   for (const { kind, re } of RULES) {
     const m = re.exec(t)

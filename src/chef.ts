@@ -764,6 +764,44 @@ export const CHEF_RECIPES: ChefDef[] = [
       '• Serves 2. About 30 min plus resting.',
     ].join('\n'),
   },
+
+  {
+    title: 'Roasted Garlic Herb Butter (蒜香黄油酱)',
+    category: 'Sauce',
+    tags: ['sauce', 'butter', 'garlic', 'spread', 'condiment'],
+    prepMin: 10,
+    cookMin: 35,
+    servings: 12,
+    favorite: true,
+    pinned: false,
+    since: 6,
+    photo: 'roasted-garlic-herb-butter.jpg',
+    sourceUrl: 'https://www.rednote.com/discovery/item/6886a6a10000000017030840',
+    sourceLabel: 'Xiaohongshu · 小七',
+    ingredients: [
+      '2 heads garlic, cloves peeled',
+      '100 ml (about 1/3 cup + 1 tbsp) olive oil',
+      'a few sprigs fresh thyme',
+      '250 g (about 1 cup / 2 sticks + 2 tbsp) unsalted butter, softened (real/cultured butter tastes best)',
+      '2 tsp paprika (smoked works too)',
+      'salt, to taste',
+      'fresh parsley, chopped',
+    ],
+    steps: [
+      'Preheat the oven to 160°C (320°F).',
+      'Put the garlic cloves, olive oil and thyme in a small baking dish. Slow-roast for 30–40 minutes, until the garlic is soft and golden. You\'ll also get a fragrant garlic oil.',
+      'Let the butter soften at room temperature. Mash the roasted garlic into it and mix well.',
+      'Add the paprika, salt and parsley, and stir until smooth.',
+      'Serve. It goes with almost anything.',
+    ],
+    notes: [
+      '• Rich, garlicky and silky. Great on steak, bread and potatoes.',
+      '• Pairs well with: steak, toasted bread, avocado toast, veggie sticks, roasted potatoes.',
+      '• Store it in the fridge. If it hardens, microwave it for a few seconds to soften.',
+      '• An air fryer works for roasting the garlic. Save the leftover garlic oil for cooking.',
+      '• Makes about 1.5 cups. About 45 min.',
+    ].join('\n'),
+  },
 ]
 
 

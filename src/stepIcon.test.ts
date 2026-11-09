@@ -54,6 +54,8 @@ describe('stepKind', () => {
     expect(stepKind('Gently toss in the diced avocado at the very end, so it doesn\'t get mashed.')).toBe('toss')
     expect(stepKind('Make the chimichurri first. Mix the shallot and garlic.')).toBe('mix')
     expect(stepKind('Add the butter and rosemary and spoon the foaming butter over the steaks.')).toBe('pour')
+    expect(stepKind('Slow-roast for 30–40 minutes, until the garlic is soft and golden.')).toBe('roast')
+    expect(stepKind('Let the butter soften at room temperature. Mash the roasted garlic into it and mix well.')).toBe('mix')
   })
 
   it('prefers more specific actions when several verbs appear', () => {
