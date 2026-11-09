@@ -9,10 +9,12 @@ import { SAMPLES } from './samples'
 import { STARTER_PHOTO, makeStarter } from './starter'
 import { CHEF_RECIPES, chefPhotoUrl, makeChefRecipes } from './chef'
 import {
-  IconBack, IconBook, IconCamera, IconCart, IconCheck, IconClock, IconEdit, IconGear, IconHeart, IconImage, IconPlus,
-  IconPot, IconSearch, IconTrash, IconUsers, Logo, PlateArt, StepPic,
+  IconBack, IconBook, IconCamera, IconCart, IconCheck, IconClose, IconEdit, IconExternal, IconGear, IconHeart, IconImage, IconPause,
+  IconPlay, IconPlus, IconSearch, IconSpeaker, IconStop, IconTimer, IconTrash, Logo, PlateArt, StepPic,
 } from './icons'
-import { stepKind } from './stepIcon'
+import { STEP_LABELS, stepKind } from './stepIcon'
+import { detectLang, formatClock, parseTimers, sourceKind, splitTitle, type SourceKind } from './cook'
+import { canSpeak, getAutoRead, setAutoRead, speak, stopSpeaking } from './speech'
 
 type Tab = 'recipes' | 'favorites' | 'shopping' | 'settings'
 type View =
@@ -22,7 +24,7 @@ type View =
   | { kind: 'pick' }
   | null
 
-const APP_VERSION = '1.0.0'
+const APP_VERSION = '2.0.0'
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -171,7 +173,7 @@ export default function App() {
 
   let title = tab === 'recipes' ? 'Recipe Box' : tab === 'favorites' ? 'Favorites' : tab === 'shopping' ? 'Shopping List' : 'Settings'
   if (activeView?.kind === 'edit') title = activeView.id ? 'Edit Recipe' : 'New Recipe'
-  if (activeView?.kind === 'cook') title = 'Cook Mode'
+  if (activeView?.kind === 'cook') title = current ? splitTitle(current.title).main : 'Cook Mode'
   if (activeView?.kind === 'pick') title = 'Add From Recipes'
   if (activeView?.kind === 'recipe') title = current?.category ?? 'Recipe'
 
@@ -183,10 +185,10 @@ export default function App() {
 
   return (
     <>
-      <header className="header">
+      <header className={`header${activeView?.kind === 'cook' ? ' cooking' : ''}`}>
         <div className="header-in">
           {activeView ? (
-            <button className="hbtn back" onClick={back} aria-label="Back"><IconBack /></button>
+            <button className={`hbtn back${activeView.kind === 'cook' ? ' close' : ''}`} onClick={back} aria-label="Back">{activeView.kind === 'cook' ? <IconClose /> : <IconBack />}</button>
           ) : (
             <span className="logo"><Logo /></span>
           )}
@@ -195,7 +197,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="main">
+      <main className={`main${activeView?.kind === 'cook' ? ' cooking' : ''}${activeView?.kind === 'recipe' ? ' with-cta' : ''}`}>
         {!ready ? null : activeView?.kind === 'recipe' && current ? (
           <RecipeView
             key={current.id}
@@ -254,7 +256,7 @@ export default function App() {
 
       {toast && <div className="toast" role="status">{toast}</div>}
 
-      <nav className="tabbar" aria-label="Sections">
+      {activeView?.kind !== 'cook' && <nav className="tabbar" aria-label="Sections">
         <div className="tabbar-in">
           {([
             ['recipes', 'Recipes', <IconBook key="b" />],
@@ -269,7 +271,7 @@ export default function App() {
             </button>
           ))}
         </div>
-      </nav>
+      </nav>}
     </>
   )
 }
@@ -280,14 +282,12 @@ function Thumb({ src, className = '' }: { src?: string; className?: string }) {
   return src ? <img className={`thumb ${className}`} src={src} alt="" /> : <div className={`thumb ph ${className}`}><PlateArt /></div>
 }
 
-function Meta({ r }: { r: Recipe }) {
-  const t = totalTime(r)
-  return (
-    <span className="meta">
-      {t && <span><IconClock />{formatMinutes(t)}</span>}
-      {r.servings && <span><IconUsers />{formatQuantity(r.servings)}</span>}
-    </span>
-  )
+const SOURCE_BADGE: Record<SourceKind, string> = { xhs: '小红书', tiktok: 'TikTok', youtube: 'YouTube', instagram: 'Instagram', link: 'Link' }
+
+function tileBadge(r: Recipe) {
+  const k = sourceKind(r.sourceUrl, r.sourceLabel)
+  if (k === 'xhs' || k === 'tiktok') return { text: SOURCE_BADGE[k], cls: `src-${k}` }
+  return { text: r.category, cls: '' }
 }
 
 function RecipeList(p: {
@@ -324,7 +324,8 @@ function RecipeList(p: {
     )
   }
   return (
-    <div className="pad">
+    <div className="pad home">
+      <h2 className="greet">{p.favoritesOnly ? <>Your <em>favorites</em></> : <>What’s <em>cooking</em>,<br />Chairman?</>}</h2>
       <label className="search">
         <IconSearch />
         <input type="search" inputMode="search" placeholder="Search name, ingredient or tag" value={query} onChange={(e) => setQuery(e.target.value)} enterKeyHint="search" />
@@ -336,25 +337,36 @@ function RecipeList(p: {
           {cats.map((c) => <button key={c} className={`chip${cat === c ? ' on' : ''}`} onClick={() => setCat(cat === c ? null : c)}>{c}</button>)}
         </div>
       )}
+      <div className="list-head">
+        <h3>{cat ?? (p.favoritesOnly ? 'Favorites' : 'Your recipes')}</h3>
+        <span className="list-count">{list.length}</span>
+      </div>
       {list.length === 0 ? (
         <p className="none">No recipes match{query ? ` “${query}”` : ''}.</p>
       ) : (
         <div className="grid">
-          {list.map((r) => (
-            <article key={r.id} className="card" onClick={() => p.onOpen(r)}>
-              <div className="card-img">
+          {list.map((r) => {
+            const { main, sub } = splitTitle(r.title)
+            const badge = tileBadge(r)
+            const t = totalTime(r)
+            return (
+              <article key={r.id} className="card" onClick={() => p.onOpen(r)}>
                 <Thumb src={r.photoId ? p.photos[r.photoId] : undefined} />
+                <span className={`tile-badge ${badge.cls}`}>{badge.text}</span>
                 <button className={`fav${r.favorite ? ' on' : ''}`} onClick={(e) => { e.stopPropagation(); p.onFav(r) }} aria-label={r.favorite ? 'Remove from favorites' : 'Add to favorites'}>
-                  <IconHeart filled={r.favorite} size={22} />
+                  <IconHeart filled={r.favorite} size={20} />
                 </button>
-              </div>
-              <div className="card-body">
-                <span className="card-cat">{r.category}</span>
-                <h3>{r.title}</h3>
-                <Meta r={r} />
-              </div>
-            </article>
-          ))}
+                <div className="card-over">
+                  <h3>{main}</h3>
+                  <span className="card-meta">
+                    {sub && <span className="zh" lang="zh-CN">{sub}</span>}
+                    {sub && t ? ' · ' : ''}
+                    {t ? formatMinutes(t) : ''}
+                  </span>
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
       <p className="count">{list.length} of {pool.length} recipe{pool.length === 1 ? '' : 's'}</p>
@@ -376,9 +388,41 @@ function useScale(r: Recipe) {
   return { base, servings, factor, step, reset: () => setServings(base ?? 1) }
 }
 
+function SourceCard({ r }: { r: Recipe }) {
+  const note = r.sourceNote?.trim() ?? ''
+  const inspired = /^inspired by\b/i.test(note)
+  const noteText = inspired ? (note.includes('·') ? note.split('·').slice(1).join('·').trim() : '') : note
+  if (!r.sourceUrl) {
+    if (!note) return null
+    return (
+      <div className="src-card plain">
+        <span className="src-badge chef">Chef</span>
+        <span className="src-text"><span className="source-note">{note}</span></span>
+      </div>
+    )
+  }
+  const url = normalizeSourceUrl(r.sourceUrl)
+  const kind = sourceKind(r.sourceUrl, r.sourceLabel) ?? 'link'
+  let host = 'Open link'
+  try { host = new URL(url).hostname.replace(/^www\./, '') } catch { /* keep default */ }
+  const label = r.sourceLabel?.trim() || host
+  return (
+    <a className="src-card" href={url} target="_blank" rel="noopener noreferrer">
+      <span className={`src-badge src-${kind}`}>{SOURCE_BADGE[kind]}</span>
+      <span className="src-text">
+        <span className="source-kicker">{inspired ? 'Inspired by' : 'Source'}</span>
+        <span className="source-label">{label.replace(/^(xiaohongshu|tiktok)\s*·\s*/i, '')}</span>
+        {noteText && <span className="source-note">{noteText}</span>}
+      </span>
+      <span className="src-open">Open <IconExternal /></span>
+    </a>
+  )
+}
+
 function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (factor: number) => void; onShop: (factor: number) => void }) {
   const { r } = p
   const sc = useScale(r)
+  const { main, sub } = splitTitle(r.title)
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const toggle = (i: number) => setChecked((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })
   return (
@@ -388,9 +432,12 @@ function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (
       </div>
       <div className="pad">
         <div className="title-row">
-          <h2 className="rtitle">{r.title}</h2>
+          <div className="title-text">
+            <h2 className="rtitle">{main}</h2>
+            {sub && <p className="rsub zh" lang="zh-CN">{sub}</p>}
+          </div>
           <button className={`fav big${r.favorite ? ' on' : ''}`} onClick={p.onFav} aria-label={r.favorite ? 'Remove from favorites' : 'Add to favorites'}>
-            <IconHeart filled={r.favorite} />
+            <IconHeart filled={r.favorite} size={24} />
           </button>
         </div>
         <div className="facts">
@@ -399,49 +446,19 @@ function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (
           {totalTime(r) && r.prepMin && r.cookMin ? <div><b>{formatMinutes(totalTime(r))}</b><span>Total</span></div> : null}
           {r.servings ? <div><b>{formatQuantity(r.servings)}</b><span>Serves</span></div> : null}
         </div>
+        <SourceCard r={r} />
         {r.tags.length > 0 && <div className="tags">{r.tags.map((t) => <span key={t} className="tag">#{t}</span>)}</div>}
-
-        {(r.sourceUrl || r.sourceNote) && (
-          <div className="source">
-            {r.sourceUrl && (
-              <a
-                className="source-link"
-                href={normalizeSourceUrl(r.sourceUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span className="source-kicker">{/^inspired by\b/i.test(r.sourceNote ?? '') ? 'Inspired by' : 'Source'}</span>
-                <span className="source-label">{r.sourceLabel?.trim() || (() => { try { return new URL(normalizeSourceUrl(r.sourceUrl!)).hostname.replace(/^www\./, '') } catch { return 'Open link' } })()}</span>
-              </a>
-            )}
-            {r.sourceNote && (() => {
-              const note = r.sourceNote.trim()
-              if (/^inspired by\b/i.test(note)) {
-                const rest = note.includes('·') ? note.split('·').slice(1).join('·').trim() : ''
-                return rest ? <p className="source-note">{rest}</p> : null
-              }
-              return <p className="source-note">{note}</p>
-            })()}
-          </div>
-        )}
-
-        <button className="btn primary big cook-btn" onClick={() => p.onCook(sc.factor)} disabled={!r.steps.length}>
-          <IconPot size={26} /> Start Cook Mode
-        </button>
 
         <section className="sec">
           <div className="sec-head">
             <h3>Ingredients</h3>
-          </div>
-          <div className="scaler">
-            <button className="round" onClick={() => sc.step(-1)} aria-label="Fewer servings">−</button>
-            <div className="scaler-mid">
-              <b>{sc.base ? formatQuantity(sc.servings) : `×${formatQuantity(sc.servings)}`}</b>
-              <span>{sc.base ? (sc.servings === 1 ? 'serving' : 'servings') : 'batch'}</span>
+            <div className="stepper scaler">
+              <button className="round" onClick={() => sc.step(-1)} aria-label="Fewer servings">−</button>
+              <span className="stepper-mid">{sc.base ? `${formatQuantity(sc.servings)} ${sc.servings === 1 ? 'serving' : 'servings'}` : `×${formatQuantity(sc.servings)} batch`}</span>
+              <button className="round" onClick={() => sc.step(1)} aria-label="More servings">+</button>
             </div>
-            <button className="round" onClick={() => sc.step(1)} aria-label="More servings">+</button>
-            {sc.factor !== 1 && <button className="link" onClick={sc.reset}>Reset</button>}
           </div>
+          {sc.factor !== 1 && <button className="link reset" onClick={sc.reset}>Reset to {sc.base ? formatQuantity(sc.base) : '×1'}</button>}
           {r.ingredients.length ? (
             <ul className="checklist">
               {r.ingredients.map((line, i) => (
@@ -459,20 +476,17 @@ function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (
 
         {r.steps.length > 0 && (
           <section className="sec">
-            <h3>Steps</h3>
+            <div className="sec-head"><h3>Steps</h3><span className="sec-count">{r.steps.length} steps</span></div>
             <ol className="steps">
-              {r.steps.map((s, i) => {
-                const kind = stepKind(s)
-                return (
-                  <li key={i}>
-                    <div className="step-pic-wrap">
-                      <StepPic kind={kind} className="step-pic" />
-                      <span className="num">{i + 1}</span>
-                    </div>
-                    <p>{s}</p>
-                  </li>
-                )
-              })}
+              {r.steps.map((s, i) => (
+                <li key={i}>
+                  <div className="step-pic-wrap">
+                    <StepPic kind={stepKind(s)} className="step-pic" />
+                    <span className="num">{i + 1}</span>
+                  </div>
+                  <p>{s}</p>
+                </li>
+              ))}
             </ol>
           </section>
         )}
@@ -484,17 +498,70 @@ function RecipeView(p: { r: Recipe; photo?: string; onFav: () => void; onCook: (
           </section>
         )}
       </div>
+      {r.steps.length > 0 && (
+        <div className="cta-bar">
+          <button className="btn primary big cook-btn" onClick={() => p.onCook(sc.factor)}>
+            <IconPlay size={20} /> Start cooking
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
 /* ------------------------------------------------------------------ */
 
+interface RunTimer { id: string; step: number; label: string; total: number; endsAt: number | null; left: number; done: boolean }
+
+let audioCtx: AudioContext | null = null
+function unlockAudio() {
+  try {
+    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!audioCtx && AC) audioCtx = new AC()
+    audioCtx?.resume().catch(() => {})
+  } catch { /* no audio */ }
+}
+function chime() {
+  const ctx = audioCtx
+  if (!ctx) return
+  const t0 = ctx.currentTime
+  for (let k = 0; k < 3; k++) {
+    const o = ctx.createOscillator()
+    const g = ctx.createGain()
+    o.frequency.value = 880
+    g.gain.setValueAtTime(0.0001, t0 + k * 0.45)
+    g.gain.exponentialRampToValueAtTime(0.3, t0 + k * 0.45 + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + k * 0.45 + 0.35)
+    o.connect(g).connect(ctx.destination)
+    o.start(t0 + k * 0.45)
+    o.stop(t0 + k * 0.45 + 0.4)
+  }
+  navigator.vibrate?.([200, 120, 200])
+}
+
+function TimerRing({ frac }: { frac: number }) {
+  const c = 2 * Math.PI * 26
+  return (
+    <svg className="ring" viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="32" cy="32" r="26" className="ring-bg" />
+      <circle cx="32" cy="32" r="26" className="ring-fg" strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0, Math.min(1, frac)))} transform="rotate(-90 32 32)" />
+    </svg>
+  )
+}
+
 function CookMode({ r, factor, onDone }: { r: Recipe; factor: number; onDone: () => void }) {
   const [i, setI] = useState(0)
   const [showIng, setShowIng] = useState(false)
   const [awake, setAwake] = useState<'on' | 'off' | 'na'>('na')
+  const [speaking, setSpeaking] = useState(false)
+  const [autoRead, setAuto] = useState(getAutoRead)
+  const [timers, setTimers] = useState<RunTimer[]>([])
+  const [, setNow] = useState(0)
   const n = r.steps.length
+  const step = r.steps[i] ?? ''
+  const kind = stepKind(step)
+  const found = useMemo(() => parseTimers(step), [step])
+  const voice = canSpeak()
 
   useEffect(() => {
     type Sentinel = { release: () => Promise<void>; addEventListener: (t: string, f: () => void) => void }
@@ -516,22 +583,119 @@ function CookMode({ r, factor, onDone }: { r: Recipe; factor: number; onDone: ()
     return () => { alive = false; document.removeEventListener('visibilitychange', onVis); lock?.release().catch(() => {}) }
   }, [])
 
+  const readStep = useCallback((k: number) => {
+    const text = r.steps[k]
+    if (!text) return
+    setSpeaking(true)
+    speak(`Step ${k + 1}. ${text}`, () => setSpeaking(false))
+  }, [r.steps])
+
+  // Changing step stops reading, unless auto-read is on (then the new step is read).
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) { first.current = false; return }
+    if (autoRead) readStep(i)
+    else { stopSpeaking(); setSpeaking(false) }
+  }, [i]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => stopSpeaking(), [])
+
+  // Tick while any timer runs; timers use end timestamps so they stay right after the phone sleeps.
+  const running = timers.some((t) => t.endsAt && !t.done)
+  useEffect(() => {
+    if (!running) return
+    const id = window.setInterval(() => {
+      const now = Date.now()
+      setTimers((ts) => {
+        let rang = false
+        const next = ts.map((t) => {
+          if (!t.endsAt || t.done) return t
+          const left = (t.endsAt - now) / 1000
+          if (left <= 0) { rang = true; return { ...t, left: 0, endsAt: null, done: true } }
+          return { ...t, left }
+        })
+        if (rang) chime()
+        return next
+      })
+      setNow(now)
+    }, 250)
+    return () => clearInterval(id)
+  }, [running])
+
+  const startTimer = (label: string, seconds: number) => {
+    unlockAudio()
+    setTimers((ts) => [...ts, { id: uid(), step: i, label, total: seconds, endsAt: Date.now() + seconds * 1000, left: seconds, done: false }])
+  }
+  const pauseResume = (id: string) => setTimers((ts) => ts.map((t) => t.id !== id || t.done ? t : t.endsAt
+    ? { ...t, endsAt: null, left: Math.max(0, (t.endsAt - Date.now()) / 1000) }
+    : { ...t, endsAt: Date.now() + t.left * 1000 }))
+  const addMinute = (id: string) => { unlockAudio(); setTimers((ts) => ts.map((t) => t.id !== id ? t : t.done
+    ? { ...t, done: false, total: 60, left: 60, endsAt: Date.now() + 60_000 }
+    : { ...t, total: t.total + 60, left: t.left + 60, endsAt: t.endsAt ? t.endsAt + 60_000 : null })) }
+  const dismiss = (id: string) => setTimers((ts) => ts.filter((t) => t.id !== id))
+
+  const toggleRead = () => {
+    if (speaking) { stopSpeaking(); setSpeaking(false) } else readStep(i)
+  }
+  const toggleAuto = () => { const v = !autoRead; setAuto(v); setAutoRead(v) }
+
   return (
     <div className="cook">
-      <div className="cook-top">
-        <span className="cook-name">{r.title}</span>
+      <div className="cook-progress" aria-hidden="true">
+        {r.steps.map((_, k) => <i key={k} className={k <= i ? 'on' : ''} />)}
+      </div>
+      <div className="cook-meta">
+        <span className="cook-count">Step {i + 1} of {n} · {STEP_LABELS[kind]}</span>
         <span className={`awake ${awake}`}>{awake === 'on' ? 'Screen stays on' : awake === 'off' ? 'Screen may sleep' : ''}</span>
       </div>
-      <div className="progress"><i style={{ width: `${((i + 1) / n) * 100}%` }} /></div>
-      <div className="cook-count">Step {i + 1} of {n}</div>
       <div className="cook-pic">
-        <StepPic kind={stepKind(r.steps[i])} size={88} />
+        <StepPic kind={kind} size={168} />
       </div>
-      <p className="cook-step">{r.steps[i]}</p>
+      <p className="cook-step" lang={detectLang(step) === 'zh-CN' ? 'zh-CN' : undefined}>{step}</p>
+
+      {voice && (
+        <div className="voice-row">
+          <button className={`speak-btn${speaking ? ' on' : ''}`} onClick={toggleRead} aria-pressed={speaking}>
+            {speaking ? <><IconStop size={20} /> Stop reading</> : <><IconSpeaker size={22} /> Read aloud</>}
+          </button>
+          <button className={`auto-read${autoRead ? ' on' : ''}`} role="switch" aria-checked={autoRead} onClick={toggleAuto}>
+            <span className="switch"><i /></span> Auto-read
+          </button>
+        </div>
+      )}
+
+      {found.filter((f) => !timers.some((t) => t.step === i && t.label === f.label)).map((f) => (
+        <button key={f.label} className="timer-chip" onClick={() => startTimer(f.label, f.seconds)}>
+          <IconTimer /> Start {formatClock(f.seconds)} timer <small>“{f.label}”</small>
+        </button>
+      ))}
+
+      {timers.map((t) => (
+        <div key={t.id} className={`timer-card${t.done ? ' done' : ''}${!t.endsAt && !t.done ? ' paused' : ''}`}>
+          <TimerRing frac={t.total ? t.left / t.total : 0} />
+          <div className="timer-text">
+            <b>{t.done ? 'Done!' : formatClock(t.left)}</b>
+            <span>Step {t.step + 1} · {t.label}{!t.endsAt && !t.done ? ' · paused' : ''}</span>
+          </div>
+          <div className="timer-btns">
+            {!t.done && <button onClick={() => pauseResume(t.id)} aria-label={t.endsAt ? 'Pause timer' : 'Resume timer'}>{t.endsAt ? <IconPause /> : <IconPlay size={18} />}</button>}
+            <button onClick={() => addMinute(t.id)} aria-label="Add one minute">+1</button>
+            <button onClick={() => dismiss(t.id)} aria-label="Dismiss timer"><IconClose size={18} /></button>
+          </div>
+        </div>
+      ))}
+
+      {i < n - 1 && (
+        <div className="up-next">
+          <StepPic kind={stepKind(r.steps[i + 1])} size={40} />
+          <div><span>Up next · Step {i + 2}</span><p>{r.steps[i + 1]}</p></div>
+        </div>
+      )}
+
       <button className="link ing-toggle" onClick={() => setShowIng((s) => !s)}>{showIng ? 'Hide ingredients' : 'Show ingredients'}</button>
       {showIng && <ul className="cook-ing">{r.ingredients.map((l, k) => <li key={k}>{scaleIngredient(l, factor)}</li>)}</ul>}
+
       <div className="cook-nav">
-        <button className="btn big" onClick={() => setI((x) => Math.max(0, x - 1))} disabled={i === 0}>Back</button>
+        <button className="btn big" onClick={() => setI((x) => Math.max(0, x - 1))} disabled={i === 0}><IconBack /> Back</button>
         {i < n - 1
           ? <button className="btn primary big" onClick={() => setI((x) => Math.min(n - 1, x + 1))}>Next step</button>
           : <button className="btn primary big" onClick={onDone}><IconCheck size={24} /> Done</button>}

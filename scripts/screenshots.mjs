@@ -65,7 +65,7 @@ await shot('05-smoothie-4-servings')
 await page.click('text=Add to shopping list')
 
 await page.evaluate(() => window.scrollTo(0, 0))
-await page.click('text=Start Cook Mode')
+await page.click('text=Start cooking')
 await page.waitForSelector('.cook-step')
 await page.waitForSelector('.cook-pic svg')
 check((await page.locator('.cook-pic svg').count()) === 1, 'cook mode shows step picture')

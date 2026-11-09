@@ -14,9 +14,14 @@ interface StoredPhoto { type: string; buf: ArrayBuffer }
 const toStored = async (b: Blob): Promise<StoredPhoto> => ({ type: b.type || 'image/jpeg', buf: await b.arrayBuffer() })
 const fromStored = (p: StoredPhoto) => new Blob([p.buf], { type: p.type })
 
+/** Storage identity. 2.0 keeps the 1.x database name, version and stores, so every install carries over. */
+export const DB_NAME = 'recipe-box'
+export const DB_VERSION = 2
+export const STORES = ['recipes', 'photos', 'shopping', 'meta'] as const
+
 let dbp: Promise<IDBPDatabase<Schema>> | null = null
 const db = () =>
-  (dbp ??= openDB<Schema>('recipe-box', 2, {
+  (dbp ??= openDB<Schema>(DB_NAME, DB_VERSION, {
     upgrade(d, oldVersion) {
       if (oldVersion < 1) {
         d.createObjectStore('recipes', { keyPath: 'id' })

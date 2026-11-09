@@ -1,6 +1,6 @@
 /* Recipe Box service worker — generated at build time (see vite.config.ts). */
 const VERSION = '__VERSION__'
-const CACHE = `recipe-box-v2-${VERSION}`
+const CACHE = `recipe-box-v3-${VERSION}`  // v3 = Recipe Box 2.0 (Night Kitchen)
 const PRECACHE = __PRECACHE__
 
 self.addEventListener('install', (event) => {

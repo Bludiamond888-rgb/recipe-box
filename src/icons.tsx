@@ -1,5 +1,5 @@
 // Inline SVG icons (crisp at any scale).
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { StepKind } from './stepIcon'
 import { STEP_LABELS } from './stepIcon'
 
@@ -10,16 +10,13 @@ const I = ({ children, size = 26, fill = 'none' }: { children: ReactNode; size?:
 )
 
 export const Logo = ({ size = 34 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
-    <rect width="64" height="64" rx="15" fill="#C8472A" />
-    <g fill="none" stroke="#FFF4E4" strokeWidth="3.2" strokeLinecap="round">
-      <path d="M23 9c-3.5 4 3.5 6.5 0 11" />
-      <path d="M32 7c-3.5 4 3.5 6.5 0 11" />
-      <path d="M41 9c-3.5 4 3.5 6.5 0 11" />
-    </g>
-    <path d="M10 28h44a22 20 0 0 1-44 0z" fill="#FFF4E4" />
-    <rect x="22" y="49" width="20" height="5" rx="2.5" fill="#FFF4E4" />
-    <path d="M14 33h36" stroke="#F2B544" strokeWidth="3" strokeLinecap="round" />
+  <svg width={size} height={size} viewBox="0 0 1024 1024" aria-hidden="true" className="logo-mark">
+    <rect width="1024" height="1024" rx="229" fill="#121110" />
+    <circle cx="512" cy="262" r="48" fill="#F2A33A" />
+    <path d="M210 650a302 302 0 0 1 604 0z" fill="#F2A33A" />
+    <path d="M330 560a200 200 0 0 1 120-150" fill="none" stroke="#121110" strokeWidth="34" strokeLinecap="round" opacity=".35" />
+    <rect x="150" y="676" width="724" height="62" rx="31" fill="#F4EDE4" />
+    <path d="M300 820h424" stroke="#F2A33A" strokeWidth="26" strokeLinecap="round" opacity=".55" />
   </svg>
 )
 
@@ -40,6 +37,13 @@ export const IconImage = () => <I size={22}><rect x="3" y="4" width="18" height=
 export const IconPot = ({ size = 22 }: { size?: number }) => <I size={size}><path d="M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" /><path d="M2 10h20M9 6c-1-1.5 1-2.5 0-4M15 6c-1-1.5 1-2.5 0-4" /></I>
 export const IconTrash = () => <I size={20}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></I>
 export const IconEdit = () => <I size={20}><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></I>
+export const IconSpeaker = ({ size = 22 }: { size?: number }) => <I size={size}><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></I>
+export const IconStop = ({ size = 22 }: { size?: number }) => <I size={size} fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5" /></I>
+export const IconTimer = ({ size = 20 }: { size?: number }) => <I size={size}><circle cx="12" cy="13.5" r="7.5" /><path d="M12 13.5V10M9.5 3h5M12 3v3" /></I>
+export const IconPause = ({ size = 20 }: { size?: number }) => <I size={size}><path d="M9 6v12M15 6v12" /></I>
+export const IconPlay = ({ size = 20 }: { size?: number }) => <I size={size} fill="currentColor"><path d="M8 5.5v13l10-6.5z" /></I>
+export const IconClose = ({ size = 22 }: { size?: number }) => <I size={size}><path d="M6 6l12 12M18 6L6 18" /></I>
+export const IconExternal = ({ size = 16 }: { size?: number }) => <I size={size}><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></I>
 
 /** Placeholder tile art for recipes without a photo. */
 export const PlateArt = () => (
@@ -52,247 +56,91 @@ export const PlateArt = () => (
 )
 
 /* ---------- step illustrations (compact emoji-style tiles) ---------- */
-const BG: Record<StepKind, string> = {
-  blend: '#E8F4FF',
-  sear: '#FFE8DE',
-  fry: '#FFEFD6',
-  boil: '#E5F3FF',
-  simmer: '#FFF0E0',
-  bake: '#F5E8FF',
-  roast: '#FFE6D6',
-  grill: '#FFE8E0',
-  chop: '#E8F7EA',
-  mix: '#FFF4D6',
-  whisk: '#F0ECFF',
-  stir: '#E8F6F2',
-  toss: '#EAF7E8',
-  marinate: '#FFEAF0',
-  rest: '#EEF2FF',
-  pour: '#E6F4FF',
-  drain: '#E8F0F8',
-  roll: '#FFF0E8',
-  plate: '#FFF6E0',
-  season: '#F5EDE4',
-  heat: '#FFE9D8',
-  cook: '#FBE6DE',
+const HUE: Record<StepKind, number> = {
+  blend: 200, sear: 16, fry: 36, boil: 205, simmer: 28, bake: 268, roast: 22, grill: 8, chop: 128, mix: 42, whisk: 250,
+  stir: 165, toss: 105, marinate: 335, rest: 228, pour: 198, drain: 214, roll: 18, plate: 44, season: 30, heat: 12, cook: 4,
 }
+
+// Night Kitchen step pictures: flat food colours that read on both a dark and a light tile,
+// outlined in "ink" (currentColor), which the stylesheet sets per colour scheme.
+const AMBER = '#F2A33A'
+const RED = '#E4572E'
+const GREEN = '#4FA65B'
+const BLUE = '#4AA3DF'
+const MEAT = '#A64B2A'
+const CREAM = '#F6E7CF'
+const METAL = '#A3ADB8'
+const WOOD = '#C07C48'
+const ink = { stroke: 'currentColor', strokeWidth: 2.4, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const }
+const line = (c: string, w = 2.6) => ({ stroke: c, strokeWidth: w, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const })
+const steam = (c = AMBER) => <path d="M24 19c-2-3 2-5 0-8M32 17c-2-3 2-5 0-8M40 19c-2-3 2-5 0-8" {...line(c)} />
+const pan = (fill = METAL) => (<><path d="M9 33h37v3c0 5.5-4 9-9.5 9h-18C13 45 9 41.5 9 36z" fill={fill} {...ink} /><path d="M46 36h9" {...line('currentColor', 4.2)} /></>)
+const pot = (fill: string) => (<><path d="M13 27h38v13c0 5-4 9-9 9H22c-5 0-9-4-9-9z" fill={fill} {...ink} /><path d="M9 27h46" {...line('currentColor', 3)} /><path d="M10 31h3M51 31h3" {...line('currentColor', 3)} /></>)
+const bowl = (fill = CREAM) => <path d="M11 32h42c0 9-9 16-21 16S11 41 11 32z" fill={fill} {...ink} />
+const flame = (x: number, y: number, s = 1) => <path transform={`translate(${x} ${y}) scale(${s})`} d="M0 0c-4 0-6-3-6-6 0-4 4-5 4-10 3 2 4 4 4 6 1-1 2-2 2-4 2 2 2 5 2 8 0 3-2 6-6 6z" fill={RED} stroke={AMBER} strokeWidth={1.6} strokeLinejoin="round" />
 
 function art(kind: StepKind): ReactNode {
   switch (kind) {
-    case 'blend':
-      return (
-        <>
-          <path d="M18 10h28v6c0 10-6 18-14 18S18 26 18 16z" fill="#7EB8E8" />
-          <rect x="24" y="34" width="16" height="8" rx="2" fill="#5A8FBF" />
-          <circle cx="32" cy="20" r="5" fill="#C8472A" opacity=".85" />
-          <circle cx="26" cy="24" r="3.5" fill="#5E7F4E" opacity=".9" />
-          <circle cx="37" cy="25" r="3" fill="#F2B544" />
-        </>
-      )
     case 'sear':
-      return (
-        <>
-          <ellipse cx="32" cy="38" rx="18" ry="6" fill="#D9BF9E" />
-          <rect x="14" y="22" width="36" height="14" rx="4" fill="#8B3A1F" />
-          <path d="M18 22c2-6 6-10 14-10s12 4 14 10" fill="#C8472A" />
-          <path d="M24 12c1-4 3-6 0-8M32 10c1-4 3-6 0-8M40 12c1-4 3-6 0-8" stroke="#F2B544" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-        </>
-      )
+      return (<>{steam()}{pan()}<ellipse cx="28" cy="31" rx="12" ry="5.5" fill={MEAT} {...ink} /><path d="M21 30l4-2M27 31l4-2M33 31l2-1" {...line('#6E2A14', 2)} /></>)
     case 'fry':
-      return (
-        <>
-          <ellipse cx="32" cy="40" rx="20" ry="7" fill="#D9BF9E" />
-          <path d="M12 28h40v6a10 8 0 0 1-40 0z" fill="#C8472A" />
-          <path d="M18 24h28" stroke="#F2B544" strokeWidth="3" strokeLinecap="round" />
-          <circle cx="24" cy="30" r="3" fill="#F2B544" />
-          <circle cx="34" cy="31" r="2.5" fill="#FFF4E4" />
-          <circle cx="42" cy="29" r="2" fill="#F2B544" />
-        </>
-      )
-    case 'boil':
-      return (
-        <>
-          <path d="M14 26h36v14a8 8 0 0 1-8 8H22a8 8 0 0 1-8-8z" fill="#7EB8E8" />
-          <path d="M12 26h40" stroke="#5A8FBF" strokeWidth="3" strokeLinecap="round" />
-          <circle cx="24" cy="34" r="3" fill="#FFF" opacity=".7" />
-          <circle cx="34" cy="38" r="4" fill="#FFF" opacity=".55" />
-          <circle cx="42" cy="33" r="2.5" fill="#FFF" opacity=".65" />
-          <path d="M26 16c-1 3 2 4 0 7M34 14c-1 3 2 4 0 7M42 16c-1 3 2 4 0 7" stroke="#7EB8E8" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-        </>
-      )
-    case 'simmer':
-      return (
-        <>
-          <path d="M14 28h36v12a8 8 0 0 1-8 8H22a8 8 0 0 1-8-8z" fill="#E8A060" />
-          <path d="M12 28h40" stroke="#C8472A" strokeWidth="3" strokeLinecap="round" />
-          <path d="M22 34c4-3 8 3 12 0s8 3 12 0" stroke="#FFF4E4" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-          <path d="M28 18c-1 2.5 1.5 3.5 0 6M36 16c-1 2.5 1.5 3.5 0 6" stroke="#F2B544" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-        </>
-      )
-    case 'bake':
-    case 'roast':
-      return (
-        <>
-          <rect x="12" y="14" width="40" height="36" rx="4" fill="#6B5A4E" />
-          <rect x="16" y="18" width="32" height="20" rx="2" fill="#2A2220" />
-          <circle cx="24" cy="28" r="3" fill="#F2B544" />
-          <circle cx="32" cy="26" r="4" fill="#C8472A" />
-          <circle cx="40" cy="29" r="3" fill="#F2B544" />
-          <rect x="20" y="42" width="24" height="4" rx="1" fill="#D9BF9E" />
-        </>
-      )
+      return (<>{pan()}<ellipse cx="27.5" cy="33" rx="15" ry="3.2" fill={AMBER} /><circle cx="21" cy="28" r="2.4" fill={CREAM} {...ink} strokeWidth={1.6} /><circle cx="30" cy="26" r="2" fill={CREAM} {...ink} strokeWidth={1.6} /><circle cx="37" cy="29" r="1.8" fill={CREAM} {...ink} strokeWidth={1.6} /><path d="M20 20l-2-4M30 18v-4M40 20l2-4" {...line(AMBER, 2.2)} /></>)
     case 'grill':
-      return (
-        <>
-          <rect x="10" y="20" width="44" height="28" rx="3" fill="#5A4A40" />
-          <path d="M14 26h36M14 32h36M14 38h36" stroke="#2A2220" strokeWidth="2.5" />
-          <path d="M20 16c1-4 3-5 0-8M32 14c1-4 3-5 0-8M44 16c1-4 3-5 0-8" stroke="#F2B544" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-        </>
-      )
+      return (<><rect x="10" y="22" width="44" height="18" rx="4" fill={METAL} {...ink} /><path d="M17 22v18M25 22v18M33 22v18M41 22v18M49 22v18" {...line('currentColor', 2)} /><ellipse cx="31" cy="25" rx="11" ry="4.5" fill={MEAT} {...ink} />{flame(22, 54, 0.8)}{flame(32, 55, 1)}{flame(42, 54, 0.8)}</>)
+    case 'boil':
+      return (<><path d="M24 20c-2-3 2-5 0-8M40 20c-2-3 2-5 0-8" {...line(BLUE)} />{pot(BLUE)}<circle cx="24" cy="36" r="2.6" fill={CREAM} /><circle cx="33" cy="40" r="3.4" fill={CREAM} /><circle cx="41" cy="34" r="2.2" fill={CREAM} /></>)
+    case 'simmer':
+      return (<><path d="M28 20c-2-3 2-5 0-8M36 20c-2-3 2-5 0-8" {...line(AMBER)} />{pot(RED)}<path d="M19 35c3-2.5 6 2.5 9 0s6 2.5 9 0 6 2.5 8 0" {...line(CREAM, 2.2)} />{flame(32, 60, 0.55)}</>)
+    case 'bake':
+      return (<><rect x="10" y="12" width="44" height="40" rx="6" fill={CREAM} {...ink} /><rect x="16" y="22" width="32" height="22" rx="3" fill="#2B2420" {...ink} /><path d="M20 38h24" {...line(AMBER, 3)} /><path d="M22 34c3-4 7-4 10 0s7 4 10 0" {...line(RED, 2.2)} /><circle cx="18" cy="17" r="1.8" fill="currentColor" /><circle cx="24" cy="17" r="1.8" fill="currentColor" /><path d="M36 17h12" {...line('currentColor', 2)} /></>)
+    case 'roast':
+      return (<><path d="M33 16c8 0 14 6 13 13-1 6-7 9-13 8l-8 9c-1 2-4 2-5 0s0-4 2-5l9-8c-2-6 1-17 2-17z" fill={AMBER} {...ink} /><circle cx="19" cy="47" r="3" fill={CREAM} {...ink} strokeWidth={1.8} /><path d="M8 50h48" {...line('currentColor', 3)} /><path d="M12 50l3 5h34l3-5" fill={METAL} {...ink} /></>)
     case 'chop':
-      return (
-        <>
-          <ellipse cx="28" cy="42" rx="16" ry="5" fill="#D9BF9E" />
-          <path d="M14 38l20-22 4 4-20 22z" fill="#C5CED6" stroke="#8A96A0" strokeWidth="1.5" />
-          <path d="M34 16l8-4 6 12-8 4z" fill="#8B5A3C" />
-          <circle cx="46" cy="40" r="5" fill="#5E7F4E" />
-          <circle cx="52" cy="36" r="3.5" fill="#C8472A" />
-        </>
-      )
+      return (<><rect x="8" y="34" width="40" height="14" rx="5" fill={WOOD} {...ink} /><path d="M14 30l22-18 5 5-20 17z" fill={METAL} {...ink} /><path d="M36 12l5-4 6 6-5 4z" fill="currentColor" /><circle cx="40" cy="40" r="3.2" fill={GREEN} {...ink} strokeWidth={1.8} /><circle cx="48" cy="38" r="2.6" fill={GREEN} {...ink} strokeWidth={1.8} /><circle cx="53" cy="44" r="3" fill={RED} {...ink} strokeWidth={1.8} /></>)
     case 'mix':
-      return (
-        <>
-          <ellipse cx="32" cy="40" rx="16" ry="8" fill="#E8D4B8" />
-          <path d="M16 28c0-8 7-14 16-14s16 6 16 14v8c0 6-7 10-16 10s-16-4-16-10z" fill="#F2B544" />
-          <path d="M22 30c4 3 8-3 12 0s8-3 12 0" stroke="#C8472A" strokeWidth="2" fill="none" opacity=".5" />
-          <path d="M40 12l6 20" stroke="#8B5A3C" strokeWidth="3" strokeLinecap="round" />
-        </>
-      )
+      return (<><path d="M42 10l-7 22" {...line(WOOD, 4)} /><ellipse cx="32" cy="32" rx="18" ry="4.5" fill={AMBER} {...ink} />{bowl()}</>)
     case 'whisk':
-      return (
-        <>
-          <ellipse cx="28" cy="42" rx="14" ry="6" fill="#E8D4B8" />
-          <path d="M18 30c0-8 5-14 12-14s10 4 12 10" fill="none" stroke="#8A96A0" strokeWidth="2" />
-          <path d="M20 34c2-6 6-10 12-10M22 38c3-7 8-12 14-12" fill="none" stroke="#8A96A0" strokeWidth="1.8" />
-          <path d="M40 22l12-14" stroke="#8B5A3C" strokeWidth="3" strokeLinecap="round" />
-        </>
-      )
+      return (<><path d="M44 8l-6 14" {...line('currentColor', 3.6)} /><path d="M38 22c-6 2-10 8-8 11s9 0 10-6c1 6 8 8 9 4s-4-9-11-9z" {...line(METAL, 2.2)} /><ellipse cx="32" cy="32" rx="18" ry="4.5" fill={CREAM} {...ink} />{bowl(BLUE)}</>)
     case 'stir':
-      return (
-        <>
-          <ellipse cx="32" cy="42" rx="18" ry="7" fill="#D9BF9E" />
-          <path d="M14 30h36v8a10 8 0 0 1-36 0z" fill="#C8472A" />
-          <path d="M38 12l-4 22" stroke="#8B5A3C" strokeWidth="3" strokeLinecap="round" />
-          <circle cx="26" cy="34" r="3" fill="#F2B544" />
-          <circle cx="34" cy="35" r="2.5" fill="#FFF4E4" />
-        </>
-      )
+      return (<><path d="M40 8l-6 26" {...line(WOOD, 4)} />{pot(RED)}<path d="M20 36a12 5 0 1 0 12-4" {...line(CREAM, 2.2)} /><path d="M30 29l3 3-3 3" {...line(CREAM, 2.2)} /></>)
     case 'toss':
-      return (
-        <>
-          <ellipse cx="32" cy="40" rx="18" ry="8" fill="#E8F0E4" stroke="#5E7F4E" strokeWidth="2" />
-          <circle cx="24" cy="36" r="4" fill="#C8472A" />
-          <circle cx="34" cy="34" r="5" fill="#5E7F4E" />
-          <circle cx="40" cy="38" r="3.5" fill="#F2B544" />
-          <path d="M18 22c6-8 14-8 20 0" stroke="#8B5A3C" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </>
-      )
+      return (<><path d="M14 18c4-6 10-8 16-7M50 18c-4-6-10-8-16-7" {...line('currentColor', 2.2)} /><circle cx="24" cy="22" r="3.4" fill={GREEN} {...ink} strokeWidth={1.8} /><circle cx="34" cy="18" r="3" fill={RED} {...ink} strokeWidth={1.8} /><circle cx="42" cy="24" r="2.8" fill={AMBER} {...ink} strokeWidth={1.8} /><ellipse cx="32" cy="32" rx="18" ry="4.5" fill={GREEN} {...ink} />{bowl()}</>)
     case 'marinate':
-      return (
-        <>
-          <rect x="16" y="18" width="32" height="30" rx="4" fill="#B8D4E8" opacity=".85" />
-          <rect x="16" y="18" width="32" height="10" rx="4" fill="#8BB0C8" />
-          <path d="M22 36c3-2 6 2 9 0s6 2 9 0" stroke="#5E7F4E" strokeWidth="2" fill="none" />
-          <rect x="24" y="28" width="16" height="6" rx="2" fill="#C8472A" opacity=".8" />
-        </>
-      )
+      return (<><rect x="14" y="16" width="36" height="34" rx="7" fill={BLUE} fillOpacity={0.45} {...ink} /><path d="M14 24h36" {...line('currentColor', 2.4)} /><ellipse cx="32" cy="38" rx="12" ry="6" fill={MEAT} {...ink} /><circle cx="22" cy="31" r="1.8" fill={GREEN} /><circle cx="42" cy="44" r="1.8" fill={GREEN} /><circle cx="40" cy="31" r="1.5" fill={AMBER} /></>)
     case 'rest':
-      return (
-        <>
-          <ellipse cx="32" cy="36" rx="16" ry="12" fill="#FFF4E4" stroke="#D9BF9E" strokeWidth="2" />
-          <path d="M20 28c4-2 8 0 12-2s8 0 12 2" stroke="#C8472A" strokeWidth="2" fill="none" strokeLinecap="round" />
-          <path d="M28 14h8M32 10v8" stroke="#8A96A0" strokeWidth="2.2" strokeLinecap="round" />
-        </>
-      )
+      return (<><rect x="6" y="36" width="44" height="12" rx="5" fill={WOOD} {...ink} /><path d="M12 36c0-6 6-9 14-9s14 3 14 9z" fill={MEAT} {...ink} /><circle cx="47" cy="17" r="9" fill={CREAM} {...ink} /><path d="M47 12v5l3 2" {...line('currentColor', 2.2)} /></>)
     case 'pour':
-      return (
-        <>
-          <path d="M38 12l10 6-8 20H28l-2-8z" fill="#7EB8E8" />
-          <path d="M30 38c0 6 2 12 2 12" stroke="#7EB8E8" strokeWidth="3" strokeLinecap="round" />
-          <ellipse cx="24" cy="48" rx="12" ry="4" fill="#E8D4B8" />
-          <path d="M14 42h20v4a6 4 0 0 1-20 0z" fill="#C8472A" opacity=".7" />
-        </>
-      )
+      return (<><path d="M30 10h16l4 8-8 10H30z" fill={CREAM} {...ink} /><path d="M50 18l4-2" {...line('currentColor', 2.4)} /><path d="M30 26c-3 5-4 10-4 14" {...line(BLUE, 3.4)} /><ellipse cx="26" cy="40" rx="14" ry="3.5" fill={BLUE} {...ink} /><path d="M10 40h32c0 6-7 10-16 10s-16-4-16-10z" fill={RED} {...ink} /></>)
     case 'drain':
-      return (
-        <>
-          <path d="M18 16h28l-4 24H22z" fill="#C5CED6" stroke="#8A96A0" strokeWidth="1.5" />
-          <path d="M24 28v8M32 26v10M40 28v8" stroke="#7EB8E8" strokeWidth="2" strokeLinecap="round" />
-          <ellipse cx="32" cy="46" rx="14" ry="4" fill="#B8D4E8" opacity=".6" />
-        </>
-      )
+      return (<><path d="M12 20h40l-5 20H17z" fill={METAL} {...ink} /><path d="M8 20h48" {...line('currentColor', 3)} /><circle cx="22" cy="28" r="1.6" fill="currentColor" /><circle cx="32" cy="28" r="1.6" fill="currentColor" /><circle cx="42" cy="28" r="1.6" fill="currentColor" /><circle cx="27" cy="34" r="1.6" fill="currentColor" /><circle cx="37" cy="34" r="1.6" fill="currentColor" /><path d="M24 45v5M32 44v7M40 45v5" {...line(BLUE, 2.6)} /></>)
     case 'roll':
-      return (
-        <>
-          <ellipse cx="32" cy="34" rx="20" ry="12" fill="#E8F0E4" stroke="#5E7F4E" strokeWidth="2" />
-          <path d="M16 34c6-4 12-4 18 0s10 4 14 0" stroke="#C8472A" strokeWidth="2" fill="none" />
-          <circle cx="26" cy="32" r="3" fill="#C8472A" />
-          <circle cx="36" cy="30" r="2.5" fill="#5E7F4E" />
-          <path d="M14 22c8-6 28-6 36 0" stroke="#D9BF9E" strokeWidth="2" fill="none" strokeLinecap="round" />
-        </>
-      )
+      return (<><rect x="10" y="22" width="36" height="20" rx="10" fill={CREAM} {...ink} /><ellipse cx="46" cy="32" rx="7" ry="10" fill={CREAM} {...ink} /><circle cx="44" cy="29" r="2.4" fill={RED} /><circle cx="48" cy="34" r="2.2" fill={GREEN} /><circle cx="44" cy="36" r="1.8" fill={AMBER} /><path d="M18 26v12M26 25v14M34 25v14" {...line(GREEN, 1.8)} /></>)
     case 'plate':
-      return (
-        <>
-          <ellipse cx="32" cy="36" rx="20" ry="14" fill="#FFFDF8" stroke="#D9BF9E" strokeWidth="2.5" />
-          <ellipse cx="32" cy="36" rx="12" ry="8" fill="none" stroke="#EFE0CB" strokeWidth="2" />
-          <circle cx="28" cy="34" r="4" fill="#C8472A" />
-          <circle cx="36" cy="36" r="3.5" fill="#5E7F4E" />
-          <path d="M22 16c2 3-1 5 1 8M32 14c2 3-1 5 1 8" stroke="#F2B544" strokeWidth="2" fill="none" strokeLinecap="round" />
-        </>
-      )
+      return (<><path d="M24 18c-2-3 2-5 0-8M34 16c-2-3 2-5 0-8" {...line(AMBER)} /><ellipse cx="32" cy="38" rx="23" ry="11" fill={CREAM} {...ink} /><ellipse cx="32" cy="37" rx="14" ry="6" {...line('currentColor', 1.4)} /><ellipse cx="28" cy="35" rx="7" ry="3.6" fill={MEAT} {...ink} strokeWidth={1.8} /><circle cx="38" cy="36" r="3.4" fill={GREEN} {...ink} strokeWidth={1.8} /></>)
     case 'season':
-      return (
-        <>
-          <rect x="22" y="14" width="20" height="28" rx="4" fill="#FFF4E4" stroke="#D9BF9E" strokeWidth="2" />
-          <rect x="26" y="18" width="12" height="8" rx="2" fill="#C8472A" />
-          <circle cx="28" cy="36" r="1.8" fill="#5A4A40" />
-          <circle cx="34" cy="34" r="1.5" fill="#5A4A40" />
-          <circle cx="31" cy="40" r="1.6" fill="#5A4A40" />
-          <path d="M30 42v6M26 48h8" stroke="#8B5A3C" strokeWidth="2" strokeLinecap="round" />
-        </>
-      )
+      return (<><rect x="20" y="16" width="20" height="26" rx="6" fill={CREAM} {...ink} /><path d="M22 16c0-5 4-8 8-8s8 3 8 8z" fill={RED} {...ink} /><path d="M26 26h8M26 32h8" {...line('currentColor', 1.8)} /><circle cx="22" cy="48" r="1.6" fill="currentColor" /><circle cx="30" cy="51" r="1.6" fill="currentColor" /><circle cx="38" cy="48" r="1.6" fill="currentColor" /><circle cx="44" cy="53" r="1.4" fill="currentColor" /></>)
     case 'heat':
-      return (
-        <>
-          <path d="M14 30h36v12a8 8 0 0 1-8 8H22a8 8 0 0 1-8-8z" fill="#C8472A" />
-          <path d="M12 30h40" stroke="#8B3A1F" strokeWidth="3" strokeLinecap="round" />
-          <path d="M24 16c-1 4 2 5 0 9M32 12c-1 4 2 5 0 9M40 16c-1 4 2 5 0 9" stroke="#F2B544" strokeWidth="2.6" fill="none" strokeLinecap="round" />
-        </>
-      )
+      return (<>{pan()}<path d="M12 50h36" {...line('currentColor', 3)} />{flame(22, 60, 0.6)}{flame(30, 60, 0.75)}{flame(38, 60, 0.6)}<path d="M20 24c-2-3 2-5 0-8M30 22c-2-3 2-5 0-8" {...line(AMBER, 2.2)} /></>)
+    case 'blend':
+      return (<><path d="M18 8h28l-4 30H22z" fill={BLUE} fillOpacity={0.45} {...ink} /><path d="M20 22h24l-2 16H22z" fill="#9B6BD3" /><path d="M18 8h28l-4 30H22z" fill="none" {...ink} /><rect x="16" y="38" width="32" height="12" rx="4" fill={METAL} {...ink} /><circle cx="32" cy="44" r="2.4" fill="currentColor" /></>)
     default:
-      return (
-        <>
-          <path d="M14 26h36v14a8 8 0 0 1-8 8H22a8 8 0 0 1-8-8z" fill="#C8472A" />
-          <path d="M12 26h40" stroke="#8B3A1F" strokeWidth="3" strokeLinecap="round" />
-          <path d="M26 16c-1 3 2 4 0 7M38 16c-1 3 2 4 0 7" stroke="#F2B544" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-        </>
-      )
+      return (<>{steam()}<path d="M15 22h34" {...line('currentColor', 3)} /><path d="M27 17h10" {...line('currentColor', 3)} />{pot(RED)}</>)
   }
 }
 
-/** Compact illustrative tile for a cooking step (keyword-matched). */
+/** Compact illustrative tile for a cooking step (keyword-matched). Tile and ink colours follow the theme. */
 export function StepPic({ kind, size = 56, className }: { kind: StepKind; size?: number; className?: string }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 64 64"
-      className={className}
+      className={`steppic${className ? ` ${className}` : ''}`}
+      style={{ ['--h' as string]: HUE[kind] } as CSSProperties}
       role="img"
       aria-label={STEP_LABELS[kind]}
     >
-      <rect width="64" height="64" rx="16" fill={BG[kind]} />
+      <rect className="tile" x="0.5" y="0.5" width="63" height="63" rx="16" />
       {art(kind)}
     </svg>
   )
