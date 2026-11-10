@@ -69,7 +69,7 @@ describe('2.0 carries over a 1.x install', () => {
     await raw.put('recipes', editedChef)
     await raw.put('photos', { type: 'image/jpeg', buf: photoBytes.buffer.slice(0) }, 'p-mine')
     for (const s of shop) await raw.put('shopping', s)
-    for (const flag of ['starterSeeded', 'chefRecipesSeededV1', 'chefRecipesSeededV2', 'chefRecipesSeededV3', 'chefRecipesSeededV4', 'chefRecipesSeededV5', 'chefRecipesSeededV6', 'chefRecipesSeededV7', 'chefRecipesSeededV8', 'chefRecipesSeededV9', 'chefSourceFieldsV1']) {
+    for (const flag of ['starterSeeded', 'chefRecipesSeededV1', 'chefRecipesSeededV2', 'chefRecipesSeededV3', 'chefRecipesSeededV4', 'chefRecipesSeededV5', 'chefRecipesSeededV6', 'chefRecipesSeededV7', 'chefRecipesSeededV8', 'chefRecipesSeededV9', 'chefRecipesSeededV10', 'chefSourceFieldsV1']) {
       await raw.put('meta', now, flag)
     }
     raw.close()

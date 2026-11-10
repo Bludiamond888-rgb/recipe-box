@@ -1,6 +1,6 @@
 /* Sexy Recipe service worker — generated at build time (see vite.config.ts). */
 const VERSION = '__VERSION__'
-const CACHE = `recipe-box-v8-${VERSION}`  // v8 = Nov 10 chef batch (V9): pico, ramen eggs, chicken rice, truffle toast, yoshinoya gyudon, wagyu burger (data stores unchanged)
+const CACHE = `recipe-box-v9-${VERSION}`  // v9 = Steak Tacos with Avocado (V10 seed, not yet published) (data stores unchanged)
 const PRECACHE = __PRECACHE__
 
 self.addEventListener('install', (event) => {

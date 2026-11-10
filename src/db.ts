@@ -132,7 +132,8 @@ const CHEF_SEED_FLAG_V5 = 'chefRecipesSeededV5'
 const CHEF_SEED_FLAG_V6 = 'chefRecipesSeededV6'
 const CHEF_SEED_FLAG_V7 = 'chefRecipesSeededV7'
 const CHEF_SEED_FLAG_V8 = 'chefRecipesSeededV8'
-const CHEF_SEED_FLAG = 'chefRecipesSeededV9'
+const CHEF_SEED_FLAG_V9 = 'chefRecipesSeededV9'
+const CHEF_SEED_FLAG = 'chefRecipesSeededV10'
 const CHEF_SOURCE_FLAG = 'chefSourceFieldsV1'
 
 /**
@@ -148,6 +149,7 @@ export async function seedChefRecipesOnce(
   if (await d.get('meta', CHEF_SEED_FLAG)) return 0
   // Installs seeded at an older version only get recipes introduced later, so a recipe
   // the user deleted or renamed is never re-added. Title match still prevents duplicates.
+  const hadV9 = !!(await d.get('meta', CHEF_SEED_FLAG_V9))
   const hadV8 = !!(await d.get('meta', CHEF_SEED_FLAG_V8))
   const hadV7 = !!(await d.get('meta', CHEF_SEED_FLAG_V7))
   const hadV6 = !!(await d.get('meta', CHEF_SEED_FLAG_V6))
@@ -156,7 +158,9 @@ export async function seedChefRecipesOnce(
   const hadV3 = !!(await d.get('meta', CHEF_SEED_FLAG_V3))
   const hadV2 = !!(await d.get('meta', CHEF_SEED_FLAG_V2))
   const hadV1 = !!(await d.get('meta', CHEF_SEED_FLAG_V1))
-  const defs = hadV8
+  const defs = hadV9
+    ? allDefs.filter((x) => (x.since ?? 1) >= 10)
+    : hadV8
     ? allDefs.filter((x) => (x.since ?? 1) >= 9)
     : hadV7
       ? allDefs.filter((x) => (x.since ?? 1) >= 8)
@@ -217,6 +221,7 @@ export async function seedChefRecipesOnce(
   if (!hadV6) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V6)
   if (!hadV7) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V7)
   if (!hadV8) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V8)
+  if (!hadV9) await tx.objectStore('meta').put(ts, CHEF_SEED_FLAG_V9)
   await tx.done
   return added
 }
