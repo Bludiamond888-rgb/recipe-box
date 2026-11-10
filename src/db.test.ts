@@ -52,7 +52,7 @@ describe('starter recipe seeding', () => {
 })
 
 describe('chef recipe seeding', () => {
-  it('seeds all 20 once with photos, favorites, no sample flag', async () => {
+  it('seeds all 26 once with photos, favorites, no sample flag', async () => {
     // Fresh DB (previous tests left meta flags; open a clean slate by deleting meta via replace + new flag check)
     // fake-indexeddb persists in-process; wipe recipes/photos but keep that starter flag is set — chef flag should still be unset from a brand-new key.
     // Use a dedicated wipe of everything including meta by reopening isn't available; clear via raw puts.
@@ -64,13 +64,13 @@ describe('chef recipe seeding', () => {
 
     expect(await db.seedStarterOnce(makeStarter, photo)).toBe(true)
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(20)
+    expect(n).toBe(26)
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
 
     const rs = await db.getRecipes()
-    expect(rs).toHaveLength(21)
+    expect(rs).toHaveLength(27)
     const chef = rs.filter((r) => r.title !== 'Blueberry Pineapple Yogurt Smoothie')
-    expect(chef).toHaveLength(20)
+    expect(chef).toHaveLength(26)
     for (const r of chef) {
       expect(r.sample).toBeUndefined()
       expect(r.favorite).toBe(true)
@@ -81,15 +81,20 @@ describe('chef recipe seeding', () => {
     const titles = chef.map((r) => r.title).sort()
     expect(titles).toEqual([
       'Argentine Chimichurri Steak (阿根廷青酱牛排)',
+      'Avocado Black Truffle Scrambled Egg Toast (牛油果黑松露滑蛋三明治)',
       'Beef & Potato Salsa Bowl (土豆牛肉莎莎碗)',
       'Black Pepper Steak with Bell Peppers',
       'Chimichurri Steak Cucumber Salad',
+      'Double Cheese Wagyu Burger (双层芝士和牛汉堡)',
       'Garlic Spicy Noodles',
       'Jalapeño Steak',
       'Japanese Beef Bowl (Gyudon)',
+      'Japanese Ramen Eggs (日式溏心蛋)',
       'Milk Skin Yogurt (奶皮子酸奶)',
       'One-Pot Spanish Seafood Paella (西班牙海鲜饭)',
       'Peruvian Roast Chicken Legs with Green Sauce (秘鲁烤鸡腿 / Pollo a la Brasa)',
+      'Pico de Gallo & Guacamole (莎莎酱 & 牛油果酱)',
+      'Rice Cooker Ginger-Scallion Chicken Rice (电饭煲姜葱鸡腿焖饭)',
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
       'Shrimp Fresh Spring Rolls (Gỏi Cuốn)',
       'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
@@ -100,6 +105,7 @@ describe('chef recipe seeding', () => {
       'Taiwanese Black Pepper Steak',
       'Thai Steak Salad (Yum Neua)',
       'Vietnamese Shrimp & Chicken Spring Rolls with Peanut Sauce',
+      'Yoshinoya-Style Gyudon Beef Bowl (日式牛肉饭)',
     ].sort())
     const rolls = chef.find((r) => r.title.startsWith('Shrimp Fresh Spring Rolls'))!
     expect(rolls.category).toBe('Appetizer')
@@ -128,7 +134,7 @@ describe('chef recipe seeding', () => {
       photoId: null,
     })
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(19)
+    expect(n).toBe(25)
     const titles = (await db.getRecipes()).map((r) => r.title)
     expect(titles.filter((t) => t === 'Garlic Spicy Noodles')).toHaveLength(1)
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
@@ -145,7 +151,7 @@ describe('chef recipe seeding', () => {
     await db.seedChefRecipesOnce(chefDefs(), async () => photo())
     await db.putRecipe(sample('Sample A'))
     expect(await db.deleteSampleRecipes()).toBe(1)
-    expect((await db.getRecipes()).length).toBe(21)
+    expect((await db.getRecipes()).length).toBe(27)
     expect((await db.getRecipes()).every((r) => !r.sample)).toBe(true)
   })
 
@@ -166,9 +172,9 @@ describe('chef recipe seeding', () => {
     const edited = { ...makeChefRecipes()[0], notes: 'my edits' }
     await db.putRecipe(edited)
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(11)
+    expect(n).toBe(17)
     const rs = await db.getRecipes()
-    expect(rs).toHaveLength(12)
+    expect(rs).toHaveLength(18)
     expect(rs.find((r) => r.id === edited.id)!.notes).toBe('my edits')
     const nr = rs.find((r) => r.title.startsWith('Vietnamese Shrimp & Chicken'))!
     expect(nr.sample).toBeUndefined()
@@ -189,23 +195,29 @@ describe('chef recipe seeding', () => {
     const edited = { ...makeChefRecipes()[0], notes: 'my edits' }
     await db.putRecipe(edited)
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(10)
+    expect(n).toBe(16)
     const rs = await db.getRecipes()
-    expect(rs).toHaveLength(11)
+    expect(rs).toHaveLength(17)
     expect(rs.find((r) => r.id === edited.id)!.notes).toBe('my edits')
     expect(rs.some((r) => r.title.startsWith('Vietnamese Shrimp & Chicken'))).toBe(false)
     const titles = rs.map((r) => r.title).filter((t) => t !== edited.title).sort()
     expect(titles).toEqual([
       'Argentine Chimichurri Steak (阿根廷青酱牛排)',
+      'Avocado Black Truffle Scrambled Egg Toast (牛油果黑松露滑蛋三明治)',
       'Beef & Potato Salsa Bowl (土豆牛肉莎莎碗)',
       'Chimichurri Steak Cucumber Salad',
+      'Double Cheese Wagyu Burger (双层芝士和牛汉堡)',
+      'Japanese Ramen Eggs (日式溏心蛋)',
       'Milk Skin Yogurt (奶皮子酸奶)',
       'One-Pot Spanish Seafood Paella (西班牙海鲜饭)',
       'Peruvian Roast Chicken Legs with Green Sauce (秘鲁烤鸡腿 / Pollo a la Brasa)',
+      'Pico de Gallo & Guacamole (莎莎酱 & 牛油果酱)',
+      'Rice Cooker Ginger-Scallion Chicken Rice (电饭煲姜葱鸡腿焖饭)',
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
       'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Frites with Black Pepper Mushroom Sauce',
       'Steak Salad',
+      'Yoshinoya-Style Gyudon Beef Bowl (日式牛肉饭)',
     ].sort())
     for (const title of titles) {
       const r = rs.find((x) => x.title === title)!
@@ -225,15 +237,21 @@ describe('chef recipe seeding', () => {
     await d.put('meta', Date.now(), 'chefRecipesSeededV3')
     d.close()
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(6)
+    expect(n).toBe(12)
     const titles = (await db.getRecipes()).map((r) => r.title).sort()
     expect(titles).toEqual([
       'Argentine Chimichurri Steak (阿根廷青酱牛排)',
+      'Avocado Black Truffle Scrambled Egg Toast (牛油果黑松露滑蛋三明治)',
+      'Double Cheese Wagyu Burger (双层芝士和牛汉堡)',
+      'Japanese Ramen Eggs (日式溏心蛋)',
       'One-Pot Spanish Seafood Paella (西班牙海鲜饭)',
       'Peruvian Roast Chicken Legs with Green Sauce (秘鲁烤鸡腿 / Pollo a la Brasa)',
+      'Pico de Gallo & Guacamole (莎莎酱 & 牛油果酱)',
+      'Rice Cooker Ginger-Scallion Chicken Rice (电饭煲姜葱鸡腿焖饭)',
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
       'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Salad',
+      'Yoshinoya-Style Gyudon Beef Bowl (日式牛肉饭)',
     ].sort())
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
   })
@@ -249,13 +267,19 @@ describe('chef recipe seeding', () => {
     await d.put('meta', Date.now(), 'chefRecipesSeededV4')
     d.close()
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(4)
+    expect(n).toBe(10)
     const titles = (await db.getRecipes()).map((r) => r.title).sort()
     expect(titles).toEqual([
       'Argentine Chimichurri Steak (阿根廷青酱牛排)',
+      'Avocado Black Truffle Scrambled Egg Toast (牛油果黑松露滑蛋三明治)',
+      'Double Cheese Wagyu Burger (双层芝士和牛汉堡)',
+      'Japanese Ramen Eggs (日式溏心蛋)',
+      'Pico de Gallo & Guacamole (莎莎酱 & 牛油果酱)',
+      'Rice Cooker Ginger-Scallion Chicken Rice (电饭煲姜葱鸡腿焖饭)',
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
       'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Salad',
+      'Yoshinoya-Style Gyudon Beef Bowl (日式牛肉饭)',
     ].sort())
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
   })
@@ -270,12 +294,18 @@ describe('chef recipe seeding', () => {
     }
     d.close()
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(3)
+    expect(n).toBe(9)
     const titles = (await db.getRecipes()).map((r) => r.title).sort()
     expect(titles).toEqual([
+      'Avocado Black Truffle Scrambled Egg Toast (牛油果黑松露滑蛋三明治)',
+      'Double Cheese Wagyu Burger (双层芝士和牛汉堡)',
+      'Japanese Ramen Eggs (日式溏心蛋)',
+      'Pico de Gallo & Guacamole (莎莎酱 & 牛油果酱)',
+      'Rice Cooker Ginger-Scallion Chicken Rice (电饭煲姜葱鸡腿焖饭)',
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
       'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Salad',
+      'Yoshinoya-Style Gyudon Beef Bowl (日式牛肉饭)',
     ].sort())
     const butter = (await db.getRecipes()).find((r) => r.title.startsWith('Roasted Garlic'))!
     expect(butter.category).toBe('Sauce')
@@ -293,11 +323,17 @@ describe('chef recipe seeding', () => {
     }
     d.close()
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(2)
+    expect(n).toBe(8)
     const titles = (await db.getRecipes()).map((r) => r.title).sort()
     expect(titles).toEqual([
+      'Avocado Black Truffle Scrambled Egg Toast (牛油果黑松露滑蛋三明治)',
+      'Double Cheese Wagyu Burger (双层芝士和牛汉堡)',
+      'Japanese Ramen Eggs (日式溏心蛋)',
+      'Pico de Gallo & Guacamole (莎莎酱 & 牛油果酱)',
+      'Rice Cooker Ginger-Scallion Chicken Rice (电饭煲姜葱鸡腿焖饭)',
       'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Salad',
+      'Yoshinoya-Style Gyudon Beef Bowl (日式牛肉饭)',
     ].sort())
     const steak = (await db.getRecipes()).find((r) => r.title === 'Steak Salad')!
     expect(steak.sourceLabel).toBe('TikTok · @salma_vnr')
@@ -317,14 +353,52 @@ describe('chef recipe seeding', () => {
     }
     d.close()
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(1)
-    const r = (await db.getRecipes())[0]
-    expect(r.title).toBe('Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)')
+    expect(n).toBe(7)
+    const titles = (await db.getRecipes()).map((r) => r.title).sort()
+    expect(titles).toEqual([
+      'Avocado Black Truffle Scrambled Egg Toast (牛油果黑松露滑蛋三明治)',
+      'Double Cheese Wagyu Burger (双层芝士和牛汉堡)',
+      'Japanese Ramen Eggs (日式溏心蛋)',
+      'Pico de Gallo & Guacamole (莎莎酱 & 牛油果酱)',
+      'Rice Cooker Ginger-Scallion Chicken Rice (电饭煲姜葱鸡腿焖饭)',
+      'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
+      'Yoshinoya-Style Gyudon Beef Bowl (日式牛肉饭)',
+    ].sort())
+    const r = (await db.getRecipes()).find((x) => x.title.startsWith('Shrimp-Stuffed'))!
     expect(r.category).toBe('Appetizer')
     expect(r.sourceLabel).toBe('Xiaohongshu · 八戎吃什么')
     expect(r.sourceNote).toMatch(/^Inspired by/)
     expect(r.sourceUrl).toContain('6a857646')
     expect(r.photoId).toBeTruthy()
+    expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
+  })
+
+  it('V8 installs get only new (since>=9) recipes', async () => {
+    const d = await (await import('idb')).openDB('recipe-box', 2)
+    await d.clear('recipes')
+    await d.clear('photos')
+    await d.clear('meta')
+    for (const k of ['chefRecipesSeededV1','chefRecipesSeededV2','chefRecipesSeededV3','chefRecipesSeededV4','chefRecipesSeededV5','chefRecipesSeededV6','chefRecipesSeededV7','chefRecipesSeededV8']) {
+      await d.put('meta', Date.now(), k)
+    }
+    d.close()
+    const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
+    expect(n).toBe(6)
+    const titles = (await db.getRecipes()).map((r) => r.title).sort()
+    expect(titles).toEqual([
+      'Avocado Black Truffle Scrambled Egg Toast (牛油果黑松露滑蛋三明治)',
+      'Double Cheese Wagyu Burger (双层芝士和牛汉堡)',
+      'Japanese Ramen Eggs (日式溏心蛋)',
+      'Pico de Gallo & Guacamole (莎莎酱 & 牛油果酱)',
+      'Rice Cooker Ginger-Scallion Chicken Rice (电饭煲姜葱鸡腿焖饭)',
+      'Yoshinoya-Style Gyudon Beef Bowl (日式牛肉饭)',
+    ].sort())
+    const pico = (await db.getRecipes()).find((r) => r.title.startsWith('Pico de Gallo'))!
+    expect(pico.category).toBe('Sauce')
+    const toast = (await db.getRecipes()).find((r) => r.title.startsWith('Avocado Black'))!
+    expect(toast.category).toBe('Breakfast')
+    const eggs = (await db.getRecipes()).find((r) => r.title.startsWith('Japanese Ramen'))!
+    expect(eggs.category).toBe('Appetizer')
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
   })
 
