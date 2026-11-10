@@ -846,6 +846,48 @@ export const CHEF_RECIPES: ChefDef[] = [
       '• Serves 2. About 25 minutes.',
     ].join('\n'),
   },
+
+  {
+    title: 'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
+    category: 'Appetizer',
+    tags: ['appetizer', 'shrimp', 'mushroom', 'Chinese'],
+    prepMin: 10,
+    cookMin: 10,
+    servings: 2,
+    favorite: true,
+    pinned: false,
+    since: 8,
+    photo: 'shrimp-stuffed-mushrooms.jpg',
+    sourceUrl: 'https://www.rednote.com/discovery/item/6a8576460000000033013a45',
+    sourceLabel: 'Xiaohongshu · 八戎吃什么',
+    sourceNote: 'Inspired by · sauce amounts from the post, other amounts by Chef',
+    ingredients: [
+      '12–14 white button mushrooms (口蘑), about 1.5 inches wide',
+      '200 g (7 oz) shrimp paste (虾滑), store-bought, or 200 g peeled shrimp minced with 1 tsp cornstarch, 1/4 tsp salt, and a pinch of white pepper',
+      '1 tbsp olive oil',
+      'Garnish: 1 scallion, thinly sliced',
+      'Garnish: 1 tsp toasted sesame seeds',
+      'Sauce: 1 tbsp light soy sauce (生抽)',
+      'Sauce: 1/2 tbsp dark soy sauce (老抽)',
+      'Sauce: 1 tbsp oyster sauce',
+      'Sauce: 1 tsp sugar',
+      'Sauce: about 1/3 cup (80 ml) water',
+    ],
+    steps: [
+      'Pull the stems out of the mushrooms so each cap makes a little cup.',
+      'Fill every cap with shrimp paste and smooth the top into a neat dome.',
+      'Stir the sauce ingredients together until the sugar dissolves.',
+      'Heat the olive oil in a nonstick pan over medium heat. Set the mushrooms in shrimp-side down and fry 3–4 min until golden.',
+      'Flip them mushroom-side down, pour in the sauce, cover, and simmer 4–5 min until the shrimp is cooked through and the sauce turns glossy.',
+      'Plate, spoon the sauce over, and top with scallions and sesame seeds.',
+    ],
+    notes: [
+      '• Pat the mushrooms dry so the filling sticks.',
+      '• Wet your fingers or a spoon to smooth the shrimp paste.',
+      '• It reheats well for packed lunches.',
+      '• Serves 2. About 20 minutes.',
+    ].join('\n'),
+  },
 ]
 
 

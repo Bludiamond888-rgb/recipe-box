@@ -1,6 +1,6 @@
 /* Sexy Recipe service worker — generated at build time (see vite.config.ts). */
 const VERSION = '__VERSION__'
-const CACHE = `recipe-box-v6-${VERSION}`  // v6 = Steak Salad chef seed (V7) (data stores unchanged)
+const CACHE = `recipe-box-v7-${VERSION}`  // v7 = Shrimp-Stuffed Mushrooms chef seed (V8) (data stores unchanged)
 const PRECACHE = __PRECACHE__
 
 self.addEventListener('install', (event) => {

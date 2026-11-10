@@ -52,7 +52,7 @@ describe('starter recipe seeding', () => {
 })
 
 describe('chef recipe seeding', () => {
-  it('seeds all 19 once with photos, favorites, no sample flag', async () => {
+  it('seeds all 20 once with photos, favorites, no sample flag', async () => {
     // Fresh DB (previous tests left meta flags; open a clean slate by deleting meta via replace + new flag check)
     // fake-indexeddb persists in-process; wipe recipes/photos but keep that starter flag is set — chef flag should still be unset from a brand-new key.
     // Use a dedicated wipe of everything including meta by reopening isn't available; clear via raw puts.
@@ -64,13 +64,13 @@ describe('chef recipe seeding', () => {
 
     expect(await db.seedStarterOnce(makeStarter, photo)).toBe(true)
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(19)
+    expect(n).toBe(20)
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
 
     const rs = await db.getRecipes()
-    expect(rs).toHaveLength(20)
+    expect(rs).toHaveLength(21)
     const chef = rs.filter((r) => r.title !== 'Blueberry Pineapple Yogurt Smoothie')
-    expect(chef).toHaveLength(19)
+    expect(chef).toHaveLength(20)
     for (const r of chef) {
       expect(r.sample).toBeUndefined()
       expect(r.favorite).toBe(true)
@@ -92,6 +92,7 @@ describe('chef recipe seeding', () => {
       'Peruvian Roast Chicken Legs with Green Sauce (秘鲁烤鸡腿 / Pollo a la Brasa)',
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
       'Shrimp Fresh Spring Rolls (Gỏi Cuốn)',
+      'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Frites with Black Pepper Mushroom Sauce',
       'Steak Salad',
       'Steak Tacos',
@@ -127,7 +128,7 @@ describe('chef recipe seeding', () => {
       photoId: null,
     })
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(18)
+    expect(n).toBe(19)
     const titles = (await db.getRecipes()).map((r) => r.title)
     expect(titles.filter((t) => t === 'Garlic Spicy Noodles')).toHaveLength(1)
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
@@ -144,7 +145,7 @@ describe('chef recipe seeding', () => {
     await db.seedChefRecipesOnce(chefDefs(), async () => photo())
     await db.putRecipe(sample('Sample A'))
     expect(await db.deleteSampleRecipes()).toBe(1)
-    expect((await db.getRecipes()).length).toBe(20)
+    expect((await db.getRecipes()).length).toBe(21)
     expect((await db.getRecipes()).every((r) => !r.sample)).toBe(true)
   })
 
@@ -165,9 +166,9 @@ describe('chef recipe seeding', () => {
     const edited = { ...makeChefRecipes()[0], notes: 'my edits' }
     await db.putRecipe(edited)
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(10)
+    expect(n).toBe(11)
     const rs = await db.getRecipes()
-    expect(rs).toHaveLength(11)
+    expect(rs).toHaveLength(12)
     expect(rs.find((r) => r.id === edited.id)!.notes).toBe('my edits')
     const nr = rs.find((r) => r.title.startsWith('Vietnamese Shrimp & Chicken'))!
     expect(nr.sample).toBeUndefined()
@@ -188,9 +189,9 @@ describe('chef recipe seeding', () => {
     const edited = { ...makeChefRecipes()[0], notes: 'my edits' }
     await db.putRecipe(edited)
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(9)
+    expect(n).toBe(10)
     const rs = await db.getRecipes()
-    expect(rs).toHaveLength(10)
+    expect(rs).toHaveLength(11)
     expect(rs.find((r) => r.id === edited.id)!.notes).toBe('my edits')
     expect(rs.some((r) => r.title.startsWith('Vietnamese Shrimp & Chicken'))).toBe(false)
     const titles = rs.map((r) => r.title).filter((t) => t !== edited.title).sort()
@@ -202,6 +203,7 @@ describe('chef recipe seeding', () => {
       'One-Pot Spanish Seafood Paella (西班牙海鲜饭)',
       'Peruvian Roast Chicken Legs with Green Sauce (秘鲁烤鸡腿 / Pollo a la Brasa)',
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
+      'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Frites with Black Pepper Mushroom Sauce',
       'Steak Salad',
     ].sort())
@@ -223,13 +225,14 @@ describe('chef recipe seeding', () => {
     await d.put('meta', Date.now(), 'chefRecipesSeededV3')
     d.close()
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(5)
+    expect(n).toBe(6)
     const titles = (await db.getRecipes()).map((r) => r.title).sort()
     expect(titles).toEqual([
       'Argentine Chimichurri Steak (阿根廷青酱牛排)',
       'One-Pot Spanish Seafood Paella (西班牙海鲜饭)',
       'Peruvian Roast Chicken Legs with Green Sauce (秘鲁烤鸡腿 / Pollo a la Brasa)',
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
+      'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Salad',
     ].sort())
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
@@ -246,11 +249,12 @@ describe('chef recipe seeding', () => {
     await d.put('meta', Date.now(), 'chefRecipesSeededV4')
     d.close()
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(3)
+    expect(n).toBe(4)
     const titles = (await db.getRecipes()).map((r) => r.title).sort()
     expect(titles).toEqual([
       'Argentine Chimichurri Steak (阿根廷青酱牛排)',
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
+      'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Salad',
     ].sort())
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
@@ -266,10 +270,11 @@ describe('chef recipe seeding', () => {
     }
     d.close()
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
-    expect(n).toBe(2)
+    expect(n).toBe(3)
     const titles = (await db.getRecipes()).map((r) => r.title).sort()
     expect(titles).toEqual([
       'Roasted Garlic Herb Butter (蒜香黄油酱)',
+      'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
       'Steak Salad',
     ].sort())
     const butter = (await db.getRecipes()).find((r) => r.title.startsWith('Roasted Garlic'))!
@@ -288,12 +293,37 @@ describe('chef recipe seeding', () => {
     }
     d.close()
     const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
+    expect(n).toBe(2)
+    const titles = (await db.getRecipes()).map((r) => r.title).sort()
+    expect(titles).toEqual([
+      'Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)',
+      'Steak Salad',
+    ].sort())
+    const steak = (await db.getRecipes()).find((r) => r.title === 'Steak Salad')!
+    expect(steak.sourceLabel).toBe('TikTok · @salma_vnr')
+    expect(steak.sourceNote).toMatch(/^Inspired by/)
+    expect(steak.sourceUrl).toContain('salma_vnr')
+    expect(steak.photoId).toBeTruthy()
+    expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
+  })
+
+  it('V7 installs get only new (since>=8) recipes', async () => {
+    const d = await (await import('idb')).openDB('recipe-box', 2)
+    await d.clear('recipes')
+    await d.clear('photos')
+    await d.clear('meta')
+    for (const k of ['chefRecipesSeededV1','chefRecipesSeededV2','chefRecipesSeededV3','chefRecipesSeededV4','chefRecipesSeededV5','chefRecipesSeededV6','chefRecipesSeededV7']) {
+      await d.put('meta', Date.now(), k)
+    }
+    d.close()
+    const n = await db.seedChefRecipesOnce(chefDefs(), async () => photo())
     expect(n).toBe(1)
     const r = (await db.getRecipes())[0]
-    expect(r.title).toBe('Steak Salad')
-    expect(r.sourceLabel).toBe('TikTok · @salma_vnr')
+    expect(r.title).toBe('Shrimp-Stuffed Mushrooms with Savory Glaze (口蘑虾滑)')
+    expect(r.category).toBe('Appetizer')
+    expect(r.sourceLabel).toBe('Xiaohongshu · 八戎吃什么')
     expect(r.sourceNote).toMatch(/^Inspired by/)
-    expect(r.sourceUrl).toContain('salma_vnr')
+    expect(r.sourceUrl).toContain('6a857646')
     expect(r.photoId).toBeTruthy()
     expect(await db.seedChefRecipesOnce(chefDefs(), async () => photo())).toBe(0)
   })
